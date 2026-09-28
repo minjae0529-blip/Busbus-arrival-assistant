@@ -640,31 +640,31 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.fillStyle = '#F1F3F4';
     ctx.fillRect(0, 0, w, h);
 
-    // 2. Busan Coastline & Suyeong Bay / Gwangalli Sea (#C4E1F6)
+    // 2. 부산 해안선 및 수영만 바다
     ctx.fillStyle = '#C4E1F6';
     ctx.beginPath();
-    ctx.moveTo(w * 0.45, h);
-    ctx.bezierCurveTo(w * 0.55, h * 0.75, w * 0.75, h * 0.65, w, h * 0.6);
+    ctx.moveTo(w * 0.55, h);
+    ctx.bezierCurveTo(w * 0.65, h * 0.80, w * 0.80, h * 0.72, w, h * 0.65);
     ctx.lineTo(w, h);
     ctx.closePath();
     ctx.fill();
 
-    // Gwangalli Beach & Gwangan Bridge (Diamond Bridge Vector Line)
+    // 광안대교 점선
     ctx.strokeStyle = '#93C5FD';
     ctx.lineWidth = 3;
     ctx.setLineDash([4, 3]);
     ctx.beginPath();
-    ctx.moveTo(w * 0.55, h * 0.78);
-    ctx.quadraticCurveTo(w * 0.75, h * 0.72, w * 0.95, h * 0.62);
+    ctx.moveTo(w * 0.60, h * 0.85);
+    ctx.quadraticCurveTo(w * 0.78, h * 0.78, w * 0.95, h * 0.70);
     ctx.stroke();
     ctx.setLineDash([]);
 
     ctx.fillStyle = '#60A5FA';
     ctx.font = 'bold 9px sans-serif';
-    ctx.fillText('광안대교 (Diamond Bridge)', w * 0.62, h * 0.70);
-    ctx.fillText('수영만 / 광안리앞바다', w * 0.72, h * 0.85);
+    ctx.fillText('광안대교', w * 0.72, h * 0.76);
+    ctx.fillText('수영만', w * 0.80, h * 0.90);
 
-    // 3. Mt. Hwangnyeongsan Greenery Park Area (#CEEAD6)
+    // 3. 황령산 녹지 공원 영역
     ctx.fillStyle = '#CEEAD6';
     ctx.beginPath();
     ctx.roundRect(w * 0.22, 15, w * 0.40, h * 0.28, 16);
@@ -674,7 +674,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.font = 'bold 9px -apple-system, sans-serif';
     ctx.fillText('황령산 유원지', w * 0.35, 35);
 
-    // 4. City Blocks (#E8EAED)
+    // 4. 도시 블록
     ctx.fillStyle = '#E8EAED';
     const blockRows = [
       { x: 30, y: 40, bw: 70, bh: 45 },
@@ -694,38 +694,35 @@ document.addEventListener('DOMContentLoaded', () => {
     const sx = (w / 480) * mapZoomLevel;
     const sy = (h / 380) * mapZoomLevel;
 
-    // 5. Grid Road Network (Google Maps White Roads with #DADCE0 Borders)
-    // Suyeong-ro connection from Gwangan/Namcheon to KSU
-    drawGoogleRoad(ctx, [{ x: 310, y: 60 }, { x: 250, y: 110 }, { x: 160, y: 195 }], 14, sx, sy);
-    // Hwangnyeong-daero
-    drawGoogleRoad(ctx, [{ x: 120, y: 130 }, { x: 340, y: 140 }], 10, sx, sy);
-    // Jungang-daero in Seomyeon
+    // 5. 도로망 (구글 지도 스타일 흰색 도로 + 회색 테두리)
+    // 수영로 연결
+    drawGoogleRoad(ctx, [{ x: 60, y: 260 }, { x: 120, y: 220 }, { x: 160, y: 195 }], 14, sx, sy);
+    // 황령대로
+    drawGoogleRoad(ctx, [{ x: 80, y: 130 }, { x: 340, y: 140 }], 10, sx, sy);
+    // 중앙대로 (서면)
     drawGoogleRoad(ctx, [{ x: 435, y: 20 }, { x: 435, y: 150 }], 14, sx, sy);
 
-    // BUSAN ROUTE 24 CORRIDOR STATIONS (실제 정류소 좌표)
+    // 부산 24번 노선 정류장 (대연역 ~ 서면역 구간만 표시)
     const busan24Stations = [
-      { name: '이기대입구', x: 45, y: 310, ars: '07-038' },
-      { name: '부경대대연캠퍼스', x: 100, y: 255, ars: '07-045' },
-      { name: '경성대·부경대역', x: 160, y: 195, isCurrent: true, ars: '07-062' },
-      { name: '대연역', x: 225, y: 195, ars: '07-070' },
-      { name: '못골역(남구청)', x: 280, y: 185, ars: '07-078' },
-      { name: '지게골역', x: 325, y: 165, ars: '07-085' },
-      { name: '문현교차로', x: 360, y: 140, ars: '07-092' },
-      { name: '국제금융센터(BIFC)', x: 395, y: 105, ars: '05-015' },
-      { name: '서면역(서면지하상가)', x: 435, y: 65, isDest: true, ars: '05-028' }
+      { name: '대연역', x: 60, y: 280, isCurrent: true, ars: '07-070' },
+      { name: '못골역(남구청)', x: 140, y: 250, ars: '07-078' },
+      { name: '지게골역', x: 220, y: 215, ars: '07-085' },
+      { name: '문현교차로', x: 300, y: 170, ars: '07-092' },
+      { name: '국제금융센터(BIFC)', x: 370, y: 120, ars: '05-015' },
+      { name: '서면역', x: 435, y: 60, isDest: true, ars: '05-028' }
     ];
 
-    // Main Avenue (Suyeong-ro ➔ Munhyeon ➔ Seomyeon)
+    // 주요 도로 (수영로 → 문현 → 서면)
     drawGoogleRoad(ctx, busan24Stations, 18, sx, sy);
 
-    // Road Names (Google Maps Typography)
+    // 도로명 표시
     ctx.fillStyle = '#70757A';
     ctx.font = '500 10px Roboto, sans-serif';
-    ctx.fillText('수영로 (부산2호선 축)', 175 * sx, 215 * sy);
+    ctx.fillText('수영로 (부산2호선 축)', 120 * sx, 270 * sy);
     ctx.fillText('중앙대로 (서면)', 375 * sx, 50 * sy);
-    ctx.fillText('황령대로', 260 * sx, 135 * sy);
+    ctx.fillText('황령대로', 200 * sx, 135 * sy);
 
-    // 6. [CORE FEATURE] Google Maps Blue Route Polyline for Busan Bus 24
+    // 6. 구글 지도 스타일 블루 노선 폴리라인 (24번 버스)
     ctx.strokeStyle = '#1967D2';
     ctx.lineWidth = 9;
     ctx.lineCap = 'round';
@@ -739,7 +736,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     ctx.stroke();
 
-    // Vibrant Google Transit Blue
+    // 선명한 구글 교통 블루
     ctx.strokeStyle = '#4285F4';
     ctx.lineWidth = 6;
     ctx.beginPath();
@@ -751,23 +748,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     ctx.stroke();
 
-    // Highlight Current Leg (경성대 ➔ 서면역): Vivid Pulsing Electric Blue
+    // 현재 구간 강조 (대연역 → 서면역 전체)
     ctx.strokeStyle = '#1A73E8';
     ctx.lineWidth = 7;
     ctx.beginPath();
-    for (let i = 2; i < busan24Stations.length; i++) {
-      const cx = busan24Stations[i].x * sx;
-      const cy = busan24Stations[i].y * sy;
-      if (i === 2) ctx.moveTo(cx, cy);
+    busan24Stations.forEach((st, idx) => {
+      const cx = st.x * sx;
+      const cy = st.y * sy;
+      if (idx === 0) ctx.moveTo(cx, cy);
       else ctx.lineTo(cx, cy);
-    }
+    });
     ctx.stroke();
 
-    // 7. [USER REQUEST] 파란색 선 상에 예상 소요 시간 배지 (Google Maps Time-on-Route Tag)
-    // Leg 1: 경성대·부경대역 ➔ 서면역 (전체 목적지 구간 중앙)
-    // 문현교차로(360, 140) 부근 좌표
-    const leg1MidX = 330 * sx;
-    const leg1MidY = 160 * sy;
+    // 7. 파란색 선 상에 예상 소요 시간 배지
+    // 구간 1: 대연역 → 서면역 (전체 구간 중앙, 문현교차로 부근)
+    const leg1MidX = 280 * sx;
+    const leg1MidY = 180 * sy;
 
     let leg1TimeText = '14분';
     if (state.cachedMatches && state.cachedMatches.length > 0) {
@@ -777,18 +773,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     drawTimeOnRouteBadge(ctx, leg1MidX, leg1MidY, leg1TimeText, '5.2km · 원활', '#1A73E8', '#188038');
 
-    // Leg 2: 경성대역 ➔ 대연역 구간 시간 배지
-    const leg2MidX = ((busan24Stations[2].x + busan24Stations[3].x) / 2) * sx;
-    const leg2MidY = ((busan24Stations[2].y + busan24Stations[3].y) / 2) * sy - 14;
+    // 구간 2: 대연역 → 못골역 구간 시간 배지
+    const leg2MidX = ((busan24Stations[0].x + busan24Stations[1].x) / 2) * sx;
+    const leg2MidY = ((busan24Stations[0].y + busan24Stations[1].y) / 2) * sy - 14;
     drawTimeOnRouteBadge(ctx, leg2MidX, leg2MidY, '3분', '1.1km', '#4285F4', '#5F6368');
 
-    // 8. Station Markers (Google Maps Transit Pin Style)
+    // 8. 정류장 마커 (구글 지도 교통 핀 스타일)
     busan24Stations.forEach(st => {
       const cx = st.x * sx;
       const cy = st.y * sy;
 
       if (st.isCurrent) {
-        // [CURRENT GPS PIN]: Google Blue Pulsing Beacon
+        // 현재 위치 핀: 블루 비콘
         ctx.fillStyle = 'rgba(66, 133, 244, 0.25)';
         ctx.beginPath();
         ctx.arc(cx, cy, 18, 0, Math.PI * 2);
@@ -802,16 +798,16 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.lineWidth = 2.5;
         ctx.stroke();
 
-        // Pin Label
+        // 핀 라벨
         drawMapLabel(ctx, st.name + ' (내 위치)', cx, cy - 14, '#1A73E8', true);
 
       } else if (st.isDest) {
-        // [DESTINATION PIN]: Google Red Teardrop Marker
+        // 목적지 핀: 빨간 마커
         drawGoogleRedPin(ctx, cx, cy);
         drawMapLabel(ctx, st.name + ' (목적지)', cx, cy - 24, '#D93025', true);
 
       } else {
-        // Standard Google Transit Station Dot
+        // 일반 정류장 점
         ctx.fillStyle = '#FFFFFF';
         ctx.beginPath();
         ctx.arc(cx, cy, 5.5, 0, Math.PI * 2);
@@ -820,12 +816,12 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // Label
+        // 라벨
         drawMapLabel(ctx, st.name, cx + 9, cy + 3, '#3C4043', false);
       }
     });
 
-    // 9. Live Busan 24 Buses Navigating on the Blue Route Line
+    // 9. 실시간 24번 버스 노선 이동 애니메이션
     const t = (Date.now() / 1000) % 20;
     const bus1Prog = (t % 20) / 20;
     const bus2Prog = ((t + 10) % 20) / 20;
@@ -836,10 +832,10 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.restore();
   }
 
-  // Helper: Draw Google Maps Road Stroke
+  // 헬퍼: 구글 지도 스타일 도로 그리기
   function drawGoogleRoad(ctx, points, width, sx, sy) {
     if (points.length < 2) return;
-    // Outer border
+    // 외곽 테두리
     ctx.strokeStyle = '#DADCE0';
     ctx.lineWidth = width + 2;
     ctx.lineCap = 'round';
@@ -853,7 +849,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     ctx.stroke();
 
-    // Inner White Road
+    // 내부 흰색 도로
     ctx.strokeStyle = '#FFFFFF';
     ctx.lineWidth = width;
     ctx.beginPath();
@@ -866,7 +862,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.stroke();
   }
 
-  // Helper: [CORE] 파란색 선 상에 시간 배지 (Google Navigation Time Callout Chip)
+  // 헬퍼: 파란색 선 상 시간 배지 (구글 내비게이션 스타일)
   function drawTimeOnRouteBadge(ctx, x, y, timeText, subText, accentColor, statusColor) {
     ctx.save();
 
@@ -875,34 +871,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const bx = x - pillWidth / 2;
     const by = y - pillHeight / 2;
 
-    // Drop Shadow
+    // 그림자
     ctx.shadowColor = 'rgba(60, 64, 67, 0.28)';
     ctx.shadowBlur = 6;
     ctx.shadowOffsetY = 2;
 
-    // White Pill Card
+    // 흰색 알약 카드
     ctx.fillStyle = '#FFFFFF';
     ctx.beginPath();
     ctx.roundRect(bx, by, pillWidth, pillHeight, 12);
     ctx.fill();
 
-    // Border
+    // 테두리
     ctx.shadowColor = 'transparent';
     ctx.strokeStyle = '#DADCE0';
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    // Mini Transit Clock Icon
+    // 시계 아이콘
     ctx.fillStyle = accentColor;
     ctx.font = '10px sans-serif';
     ctx.fillText('⏱️', bx + 6, by + 16);
 
-    // Primary Time (e.g., "3분")
+    // 소요 시간
     ctx.fillStyle = '#202124';
     ctx.font = 'bold 11px -apple-system, Roboto, sans-serif';
     ctx.fillText(timeText, bx + 22, by + 16);
 
-    // Sub Status Dot & Text (e.g. green dot + "0.8km")
+    // 거리 및 상태 표시
     ctx.fillStyle = statusColor;
     ctx.font = '9px -apple-system, Roboto, sans-serif';
     const subX = bx + 22 + ctx.measureText(timeText).width + 5;
@@ -911,14 +907,14 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.restore();
   }
 
-  // Helper: Draw Google Red Destination Pin Marker
+  // 헬퍼: 구글 빨간 목적지 핀 마커
   function drawGoogleRedPin(ctx, x, y) {
     ctx.save();
     ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
     ctx.shadowBlur = 5;
     ctx.shadowOffsetY = 2;
 
-    // Pin Body
+    // 핀 본체
     ctx.fillStyle = '#EA4335';
     ctx.beginPath();
     ctx.arc(x, y - 10, 8, 0, Math.PI * 2);
@@ -927,7 +923,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.lineTo(x + 6, y - 8);
     ctx.fill();
 
-    // White Inner Center Dot
+    // 내부 흰 점
     ctx.shadowColor = 'transparent';
     ctx.fillStyle = '#FFFFFF';
     ctx.beginPath();
@@ -937,12 +933,12 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.restore();
   }
 
-  // Helper: Google Map Station Label
+  // 헬퍼: 지도 정류장 라벨
   function drawMapLabel(ctx, text, x, y, color, isBold) {
     ctx.save();
     ctx.font = (isBold ? 'bold 11px' : '500 10px') + ' -apple-system, Roboto, sans-serif';
 
-    // White outline for readability on map
+    // 가독성을 위한 흰 외곽선
     ctx.strokeStyle = '#FFFFFF';
     ctx.lineWidth = 3;
     ctx.strokeText(text, x, y);
@@ -952,7 +948,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.restore();
   }
 
-  // Helper: Live Bus Vehicle on Google Route Line
+  // 헬퍼: 실시간 버스 차량 노선 이동
   function drawGoogleLiveBus(ctx, stations, progress, busNum, color, sx, sy) {
     const segCount = stations.length - 1;
     const segIndex = Math.min(Math.floor(progress * segCount), segCount - 1);
@@ -969,19 +965,19 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.shadowBlur = 4;
     ctx.shadowOffsetY = 2;
 
-    // Bus Pill
+    // 버스 알약 모양
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.roundRect(bx - 20, by - 11, 40, 22, 11);
     ctx.fill();
 
-    // White Border
+    // 흰 테두리
     ctx.shadowColor = 'transparent';
     ctx.strokeStyle = '#FFFFFF';
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Bus Number Text
+    // 버스 번호 텍스트
     ctx.fillStyle = '#FFFFFF';
     ctx.font = 'bold 10px -apple-system, sans-serif';
     ctx.textAlign = 'center';
