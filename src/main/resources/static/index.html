@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>스마트 버스 라우트 | 실시간 위치기반 버스 도착 및 목적지 안내</title>
+  <link rel="stylesheet" href="/app.css">
+  <!-- BUS SVG FAVICON -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%232563EB'><path d='M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z'/></svg>">
+</head>
+<body>
+
+  <!-- TOP HEADER -->
+  <header class="app-header">
+    <div class="header-container">
+      <a href="/" class="brand-wrapper">
+        <div class="brand-icon-box">
+          <!-- BUS SVG ICON -->
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z"/>
+          </svg>
+        </div>
+        <div class="brand-text-col">
+          <div class="brand-name">
+            스마트 버스 라우트
+            <span class="brand-badge">JDK 21 Live</span>
+          </div>
+          <span class="brand-tagline">실시간 위치기반 버스 도착 & 최적 목적지 길안내</span>
+        </div>
+      </a>
+
+      <!-- HEADER ACTIONS: GPS & PRESET -->
+      <div class="header-actions">
+        <div class="gps-status-pill">
+          <div class="status-dot"></div>
+          <span class="gps-loc-text" id="gpsStatusText">내 GPS 위치 확인 중...</span>
+        </div>
+
+        <button class="btn-pill" id="btnRefreshGps" title="내 위치 GPS 다시 가져오기">
+          <span>📍</span> 위치 갱신
+        </button>
+
+        <select class="select-preset" id="locationPresetSelect" title="위치 시뮬레이션">
+          <option value="35.13750,129.10050">시뮬레이션: 경성대·부경대역 (수영로)</option>
+          <option value="35.14150,129.10850">시뮬레이션: 남천역 (수영구 남천동)</option>
+          <option value="35.15250,129.11550">시뮬레이션: 광안역 (수영구 광안동)</option>
+          <option value="35.16100,129.11650">시뮬레이션: 수영역 (수영구 수영동)</option>
+          <option value="35.13550,129.09200">시뮬레이션: 대연역 (남구)</option>
+          <option value="35.15780,129.05920">시뮬레이션: 서면역 (부산진구)</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="main-wrapper">
+
+    <!-- HERO DESTINATION CARD -->
+    <section class="hero-destination-card">
+      <div class="route-flow-box">
+        <div class="flow-node">
+          <span class="flow-node-badge">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+            현재 내 위치 (수영구·남구)
+          </span>
+          <span class="flow-node-title" id="bannerCurrentStationName">경성대·부경대역 (수영로)</span>
+        </div>
+
+        <div class="flow-connector">
+          <svg class="flow-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </div>
+
+        <div class="flow-node">
+          <span class="flow-node-badge">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="#38BDF8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            설정된 목적지
+          </span>
+          <span class="flow-node-title" id="bannerDestinationStationName">서면역.서면지하상가</span>
+        </div>
+      </div>
+
+      <div class="hero-actions-box">
+        <div class="hero-count-tag" id="bannerDirectBusesCount">
+          <span>🚌</span> 24번 직통 버스 탐색 중...
+        </div>
+        <button class="btn-change-destination" id="btnOpenDestModal">목적지 변경</button>
+      </div>
+    </section>
+
+    <!-- 2-COLUMN MAIN CONTENT GRID -->
+    <div class="content-grid">
+
+      <!-- LEFT COLUMN -->
+      <div class="left-column">
+
+        <!-- TABS -->
+        <nav class="custom-tab-bar">
+          <button class="tab-btn active" data-tab="destination">
+            <span>🎯</span> 목적지 직통 버스
+          </button>
+          <button class="tab-btn" data-tab="all-arrivals">
+            <span>🚌</span> 실시간 전체 도착
+          </button>
+          <button class="tab-btn" data-tab="favorites">
+            <span>⭐</span> 자주 타는 버스
+          </button>
+        </nav>
+
+        <!-- CURRENT STATION SUMMARY CARD -->
+        <div class="station-overview-card">
+          <div class="st-overview-header">
+            <div>
+              <div class="st-name-row">
+                <h2 class="st-main-name" id="currentStationTitle">경성대·부경대역</h2>
+                <span class="st-ars-num" id="currentStationArs">ARS 07-062</span>
+              </div>
+              <div class="st-subway-row" id="currentStationSubwayTags">
+                <span class="subway-chip subway-2호선">부산2호선</span>
+              </div>
+            </div>
+            <span class="st-walk-badge" id="currentStationDistance">도보 1분 (35m)</span>
+          </div>
+        </div>
+
+        <!-- FASTEST RECOMMENDATION BANNER -->
+        <div class="fastest-recommend-card" id="fastestCard" style="display: none;">
+          <div class="fastest-tag">★ 최단시간 추천</div>
+          <div class="fastest-main-text" id="fastestBusTitle">지금 24번 버스를 타시면 가장 빠릅니다!</div>
+          <div class="fastest-sub-text" id="fastestBusDesc">
+            경성대·부경대역에서 탑승 시 6개 정류장 후 [서면역] 도착 (총 약 14분 소요)
+          </div>
+        </div>
+
+        <!-- BUS CARDS LIST -->
+        <div class="bus-cards-list" id="busListContainer">
+          <div class="empty-state">
+            <span class="empty-state-icon">⏳</span>
+            실시간 부산 24번 버스 정보를 불러오는 중입니다...
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN: INTERACTIVE MAP & FAVORITES -->
+      <div class="right-column">
+
+        <!-- GOOGLE MAPS STYLE INTERACTIVE MAP -->
+        <div class="interactive-map-card">
+          <div class="map-card-head">
+            <div class="map-card-heading">
+              <span>🗺️</span> 실시간 노선도 및 주행 현황
+              <span class="google-map-tag">Google Maps 기반</span>
+            </div>
+            <span style="font-size: 11px; color: var(--text-hint);" id="liveClock">실시간 동기화</span>
+          </div>
+
+          <div class="canvas-wrapper">
+            <!-- GOOGLE MAPS CONTROLS -->
+            <div class="gmap-controls-overlay">
+              <button class="gmap-btn-type active" id="btnMapDefault">기본</button>
+              <button class="gmap-btn-type" id="btnMapTransit">대중교통</button>
+            </div>
+
+            <div class="gmap-zoom-controls">
+              <button class="gmap-zoom-btn" id="btnZoomIn" title="확대">+</button>
+              <button class="gmap-zoom-btn" id="btnZoomOut" title="축소">&minus;</button>
+            </div>
+
+            <div class="gmap-watermark">
+              <span class="g-blue">G</span><span class="g-red">o</span><span class="g-yellow">o</span><span class="g-blue">g</span><span class="g-green">l</span><span class="g-red">e</span>
+            </div>
+
+            <canvas id="routeMapCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- FAVORITES MANAGEMENT CARD -->
+        <div class="favorites-box-card">
+          <div class="fav-header-row">
+            <div class="fav-heading">
+              <span>⭐</span> 자주 타는 버스 / 역 관리
+            </div>
+            <span style="font-size: 12px; color: var(--brand-primary); font-weight: 700;" id="favCountBadge">
+              총 3개 등록됨
+            </span>
+          </div>
+
+          <!-- QUICK ADD FORM -->
+          <div class="fav-add-bar">
+            <input type="text" id="inputFavBusNumber" class="clean-input" placeholder="자주 타는 버스 번호 (예: 24)" style="flex: 1;">
+            <input type="text" id="inputFavMemo" class="clean-input" placeholder="메모 (예: 수영로 출퇴근용)" style="width: 140px;">
+            <button class="btn-primary-action" id="btnAddFavorite">등록</button>
+          </div>
+
+          <!-- FAVORITES CHIPS GRID -->
+          <div class="fav-chips-container" id="favoritesGrid">
+            <!-- Rendered via JavaScript -->
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- MODAL: DESTINATION SELECT -->
+  <div class="dialog-overlay" id="destModal">
+    <div class="dialog-card">
+      <div class="dialog-header">
+        <h3 class="dialog-title">🎯 목적지 역/정류소 설정</h3>
+        <button class="dialog-close" id="btnCloseDestModal">&times;</button>
+      </div>
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+        자주 가는 목적지를 설정해 두시면 내 위치 주변 정류소에서 해당 목적지로 직통 운행하는 버스만 자동으로 필터링하여 최단시간 도착 노선을 안내합니다.
+      </p>
+      <input type="text" id="inputSearchStation" class="clean-input" placeholder="정류소 이름 또는 지하철역 검색 (예: 강남역, 역삼역, 판교역...)" style="width: 100%;">
+
+      <div class="station-options-list" id="modalStationList">
+        <!-- Rendered via JavaScript -->
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
