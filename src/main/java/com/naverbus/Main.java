@@ -22,8 +22,10 @@ public class Main {
         DataManager dataManager = new DataManager();
         GeoLocationService geoLocationService = new GeoLocationService();
         BusArrivalService busArrivalService = new BusArrivalService(dataManager, geoLocationService);
+        com.naverbus.service.AppointmentService appointmentService = new com.naverbus.service.AppointmentService();
+        com.naverbus.service.PlaceRecommendService placeRecommendService = new com.naverbus.service.PlaceRecommendService();
 
-        AppHttpServer server = new AppHttpServer(port, dataManager, geoLocationService, busArrivalService);
+        AppHttpServer server = new AppHttpServer(port, dataManager, geoLocationService, busArrivalService, appointmentService, placeRecommendService);
 
         try {
             server.start();
@@ -42,8 +44,11 @@ public class Main {
                 server.stop();
             }));
 
-        } catch (IOException e) {
-            System.err.println("[FATAL] 서버 시작 실패: " + e.getMessage());
+            // 메인 스레드 유지 (서버 대기)
+            Thread.currentThread().join();
+
+        } catch (Exception e) {
+            System.err.println("[FATAL] 서버 오류: " + e.getMessage());
             e.printStackTrace();
         }
     }

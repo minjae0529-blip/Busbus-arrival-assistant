@@ -3,9 +3,11 @@ package com.naverbus.server;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.naverbus.model.*;
+import com.naverbus.service.AppointmentService;
 import com.naverbus.service.BusArrivalService;
 import com.naverbus.service.DataManager;
 import com.naverbus.service.GeoLocationService;
+import com.naverbus.service.PlaceRecommendService;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
@@ -23,15 +25,22 @@ public class AppHttpServer {
     private final DataManager dataManager;
     private final GeoLocationService geoLocationService;
     private final BusArrivalService busArrivalService;
+    private final AppointmentService appointmentService;
+    private final PlaceRecommendService placeRecommendService;
     private final ObjectMapper objectMapper;
     private HttpServer server;
 
-    public AppHttpServer(int port, DataManager dataManager, GeoLocationService geoLocationService, BusArrivalService busArrivalService) {
+    public AppHttpServer(int port, DataManager dataManager, GeoLocationService geoLocationService,
+                         BusArrivalService busArrivalService, AppointmentService appointmentService,
+                         PlaceRecommendService placeRecommendService) {
         this.port = port;
         this.dataManager = dataManager;
         this.geoLocationService = geoLocationService;
         this.busArrivalService = busArrivalService;
+        this.appointmentService = appointmentService;
+        this.placeRecommendService = placeRecommendService;
         this.objectMapper = new ObjectMapper();
+        this.objectMapper.findAndRegisterModules();
     }
 
     public void start() throws IOException {
@@ -49,6 +58,8 @@ public class AppHttpServer {
         server.createContext("/api/destination/matches", this::handleDestinationMatches);
         server.createContext("/api/destination", this::handleDestination);
         server.createContext("/api/favorites", this::handleFavorites);
+        server.createContext("/api/appointments", this::handleAppointments);
+        server.createContext("/api/recommendations", this::handleRecommendations);
 
         // 정적 HTML/CSS/JS 웹 GUI 서빙
         server.createContext("/", this::handleStaticWeb);
@@ -236,6 +247,63 @@ public class AppHttpServer {
         try (OutputStream os = exchange.getResponseBody()) {
             os.write(bytes);
         }
+    }
+
+    private void handleAppointments(HttpExchange exchange) throws IOException {
+        String method = exchange.getRequestMethod();
+        if ("GET".equalsIgnoreCase(method)) {
+            sendJsonResponse(exchange, 200, appointmentService.getAllAppointments());
+        } else if ("POST".equalsIgnoreCase(method)) {
+            JsonNode root = parseJsonBody(exchange);
+            String action = root.has("action") ? root.get("action").asText() : "create";
+
+            if ("join".equalsIgnoreCase(action)) {
+                String id = root.path("id").asText();
+                String friendName = root.path("friendName").asText("친구");
+                double lat = root.path("lat").asDouble(35.14800);
+                double lng = root.path("lng").asDouble(129.11200);
+                boolean success = appointmentService.joinAppointment(id, friendName, lat, lng);
+                sendJsonResponse(exchange, success ? 200 : 404, Map.of("success", success));
+            } else if ("updateLocation".equalsIgnoreCase(action)) {
+                String id = root.path("id").asText();
+                boolean isCreator = root.path("isCreator").asBoolean(true);
+                double lat = root.path("lat").asDouble();
+                double lng = root.path("lng").asDouble();
+                boolean success = appointmentService.updateLocation(id, isCreator, lat, lng);
+                sendJsonResponse(exchange, 200, Map.of("success", success));
+            } else {
+                // create
+                String title = root.path("title").asText("실시간 버스 약속");
+                String destId = root.path("destinationId").asText("ST-BS-SMN");
+                String destName = root.path("destinationName").asText("서면역");
+                int inMinutes = root.path("inMinutes").asInt(30);
+                String creatorName = root.path("creatorName").asText("나");
+                double lat = root.path("lat").asDouble(35.13750);
+                double lng = root.path("lng").asDouble(129.10050);
+
+                Appointment app = appointmentService.createAppointment(
+                        title, destId, destName,
+                        java.time.LocalDateTime.now().plusMinutes(inMinutes),
+                        creatorName, lat, lng
+                );
+                sendJsonResponse(exchange, 201, app);
+            }
+        } else {
+            sendResponse(exchange, 405, "Method Not Allowed");
+        }
+    }
+
+    private void handleRecommendations(HttpExchange exchange) throws IOException {
+        if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+            sendResponse(exchange, 405, "Method Not Allowed");
+            return;
+        }
+        Map<String, String> query = parseQuery(exchange.getRequestURI().getRawQuery());
+        String destId = query.getOrDefault("destinationId", "ST-BS-SMN");
+        int earlyMinutes = (int) parseDouble(query.get("earlyMinutes"), 15.0);
+
+        List<RecommendedPlace> places = placeRecommendService.getRecommendations(destId, earlyMinutes);
+        sendJsonResponse(exchange, 200, places);
     }
 
     private JsonNode parseJsonBody(HttpExchange exchange) throws IOException {

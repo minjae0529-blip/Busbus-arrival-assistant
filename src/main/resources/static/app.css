@@ -1063,3 +1063,146 @@ body {
   margin-bottom: 8px;
   display: block;
 }
+
+/* APPOINTMENT & MEETUP STYLES */
+.appointment-card {
+  background: white;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s;
+}
+
+.appointment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.appointment-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-title);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.appointment-badge {
+  font-size: 11px;
+  font-weight: 700;
+  background: #EEF2FF;
+  color: #4F46E5;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+}
+
+.appointment-members {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin: 10px 0;
+}
+
+.member-col {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.member-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  color: white;
+}
+
+.avatar-me { background: #2563EB; }
+.avatar-friend { background: #EA580C; }
+
+.member-info-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-title);
+}
+
+.member-info-status {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* RECOMMENDATION CARDS */
+.place-card {
+  background: white;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.place-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: #93C5FD;
+}
+
+.place-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.place-name {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-title);
+}
+
+.place-rank-badge {
+  font-size: 11px;
+  font-weight: 700;
+  background: #FEF3C7;
+  color: #D97706;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.place-desc {
+  font-size: 13px;
+  color: var(--text-body);
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.place-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.place-walk-time {
+  font-weight: 700;
+  color: #2563EB;
+}
+
+.place-rating {
+  font-weight: 700;
+  color: #DC2626;
+}
+

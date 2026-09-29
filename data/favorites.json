@@ -1,0 +1,25 @@
+[ {
+  "id" : "fa0ce05f-c2f7-46d1-892b-b2709d4a9205",
+  "type" : "BUS",
+  "targetId" : "24",
+  "name" : "24번 버스",
+  "memo" : "수영로·대연동·서면 메인 노선",
+  "routeType" : "TRUNK",
+  "createdAt" : "2026-09-28T23:36:28.358537"
+}, {
+  "id" : "4e245567-6fbc-4ac1-90ad-67281e7cd76d",
+  "type" : "STATION",
+  "targetId" : "ST-BS-KSU",
+  "name" : "경성대·부경대역 (수영로)",
+  "memo" : "수영구/남구 환승 거점",
+  "routeType" : null,
+  "createdAt" : "2026-09-28T23:36:28.358678"
+}, {
+  "id" : "7222cb4a-e65d-4630-b0a1-baaded762256",
+  "type" : "BUS",
+  "targetId" : "24",
+  "name" : "24번 버스",
+  "memo" : "자주 타는 버스",
+  "routeType" : null,
+  "createdAt" : "2026-09-28T23:36:40.567518"
+} ]

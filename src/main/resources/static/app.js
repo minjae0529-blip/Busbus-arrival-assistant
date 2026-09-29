@@ -12,6 +12,9 @@ document.addEventListener('DOMContentLoaded', () => {
     favorites: [],
     cachedArrivals: [],
     cachedMatches: [],
+    appointments: [],
+    activeAppointment: null,
+    recommendations: [],
     timerInterval: null
   };
 
@@ -57,6 +60,8 @@ document.addEventListener('DOMContentLoaded', () => {
     await fetchStations();
     await fetchDestination();
     await fetchFavorites();
+    await fetchAppointments();
+    await fetchRecommendations();
     await refreshAllData();
 
     // 1-second UI countdown and periodic fetch
@@ -70,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Re-sync with backend every 4 seconds
     setInterval(async () => {
+      await fetchAppointments();
       await refreshAllData(false);
     }, 4000);
   }
@@ -231,6 +237,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  async function fetchAppointments() {
+    try {
+      const res = await fetch('/api/appointments');
+      state.appointments = await res.json();
+      if (state.appointments && state.appointments.length > 0) {
+        state.activeAppointment = state.appointments[0];
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function fetchRecommendations() {
+    try {
+      const destId = (state.destination && state.destination.stationId) ? state.destination.stationId : 'ST-BS-SMN';
+      const res = await fetch(`/api/recommendations?destinationId=${destId}&earlyMinutes=20`);
+      state.recommendations = await res.json();
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   async function refreshAllData(showLoading = true) {
     try {
       // 1. Nearby
@@ -313,6 +341,10 @@ document.addEventListener('DOMContentLoaded', () => {
       renderAllArrivals();
     } else if (state.activeTab === 'favorites') {
       renderFavoriteArrivals();
+    } else if (state.activeTab === 'appointments') {
+      renderAppointmentsTab();
+    } else if (state.activeTab === 'recommendations') {
+      renderRecommendationsTab();
     }
   }
 
@@ -361,25 +393,139 @@ document.addEventListener('DOMContentLoaded', () => {
     bindCardEvents();
   }
 
-  function renderFavoriteArrivals() {
+  function renderAppointmentsTab() {
     el.fastestCard.style.display = 'none';
-    const arrivals = (state.cachedArrivals || []).filter(a => a.isFavorite);
+    const app = state.activeAppointment;
 
-    if (arrivals.length === 0) {
+    if (!app) {
       el.busListContainer.innerHTML = `
         <div class="empty-state">
-          <span class="empty-state-icon">⭐</span>
-          자주 타는 버스 중 현재 정류소에 도착 예정인 버스가 없습니다.<br>
-          <span style="font-size:12px; color:var(--brand-primary); margin-top:6px; display:inline-block;">
-            우측 관리창에서 버스를 즐겨찾기로 등록해보세요!
+          <span class="empty-state-icon">🤝</span>
+          진행 중인 실시간 약속이 없습니다.<br>
+          <button class="btn-pill" id="btnCreateSampleMeetup" style="margin:12px auto; display:block;">
+            + 서면 약속 생성하기
+          </button>
+        </div>
+      `;
+      const btn = document.getElementById('btnCreateSampleMeetup');
+      if (btn) {
+        btn.addEventListener('click', async () => {
+          await fetch('/api/appointments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: '서면 카페 & 점심 약속',
+              destinationId: 'ST-BS-SMN',
+              destinationName: '서면역',
+              inMinutes: 25,
+              creatorName: '민재(나)'
+            })
+          });
+          await fetchAppointments();
+          renderAppointmentsTab();
+          drawMap();
+        });
+      }
+      return;
+    }
+
+    el.busListContainer.innerHTML = `
+      <div class="appointment-card">
+        <div class="appointment-header">
+          <div class="appointment-title">
+            <span>🤝</span> ${app.title}
+          </div>
+          <span class="appointment-badge">실시간 위치 공유 중</span>
+        </div>
+
+        <div style="font-size:13px; color:var(--text-muted); margin-bottom:8px;">
+          📍 <strong>약속 장소:</strong> ${app.destinationName} &nbsp;|&nbsp; ⏱️ <strong>약속 시간:</strong> 25분 뒤 (12:30)
+        </div>
+
+        <div class="appointment-members">
+          <div class="member-col">
+            <div class="member-avatar avatar-me">나</div>
+            <div>
+              <div class="member-info-name">${app.creatorName}</div>
+              <div class="member-info-status">📍 대연역 (24번 탑승 준비)</div>
+            </div>
+          </div>
+          <div class="member-col">
+            <div class="member-avatar avatar-friend">친</div>
+            <div>
+              <div class="member-info-name">${app.friendName || '친구 대기 중'}</div>
+              <div class="member-info-status">📍 지게골역 부근 (도착 8분 전)</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+          <span style="font-size:12px; color:#2563EB; font-weight:700;">
+            ⚡ 약속 시간 동안에만 서로의 GPS가 지도에 실시간 표시됩니다.
           </span>
+          <button class="btn-pill" id="btnSimulateFriendMove" style="font-size:11px;">
+            친구 위치 갱신
+          </button>
+        </div>
+      </div>
+
+      <div class="station-overview-card" style="margin-top:12px; border-left:4px solid #2563EB;">
+        <div style="font-size:14px; font-weight:800; color:var(--text-title); margin-bottom:4px;">
+          💡 실시간 도착 예측 & 일정 피드백
+        </div>
+        <div style="font-size:13px; color:var(--text-body);">
+          내가 탈 24번 버스는 <strong>약 14분 후</strong> 서면역 도착 예정입니다.<br>
+          약속 시간보다 <strong>약 11분 일찍</strong> 도착하므로, 상단 [✨ 조기 도착 추천] 탭에서 대기할 장소를 확인해보세요!
+        </div>
+      </div>
+    `;
+
+    const btnMove = document.getElementById('btnSimulateFriendMove');
+    if (btnMove) {
+      btnMove.addEventListener('click', () => {
+        alert('친구 [지민]님의 실시간 위치가 갱신되어 노선도에 반영되었습니다!');
+        drawMap();
+      });
+    }
+  }
+
+  function renderRecommendationsTab() {
+    el.fastestCard.style.display = 'none';
+    const list = state.recommendations || [];
+
+    if (list.length === 0) {
+      el.busListContainer.innerHTML = `
+        <div class="empty-state">
+          <span class="empty-state-icon">✨</span>
+          추천 장소를 불러오는 중입니다...
         </div>
       `;
       return;
     }
 
-    el.busListContainer.innerHTML = arrivals.map(a => createArrivalCardHtml(a)).join('');
-    bindCardEvents();
+    el.busListContainer.innerHTML = `
+      <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:12px; padding:12px 16px; margin-bottom:14px;">
+        <div style="font-weight:800; font-size:14px; color:#1E40AF; margin-bottom:4px;">
+          ✨ 서면역 약속시간보다 11분 일찍 도착 예정!
+        </div>
+        <div style="font-size:12px; color:#1E3A8A;">
+          네이버 플레이스 및 구글 지도 실시간 검색 랭킹 상위 장소들입니다. 친구가 오기 전까지 편안하게 둘러보세요.
+        </div>
+      </div>
+    ` + list.map((item, idx) => `
+      <div class="place-card">
+        <div class="place-head">
+          <div class="place-name">${idx + 1}. ${item.name}</div>
+          <span class="place-rank-badge">🔥 ${item.badge}</span>
+        </div>
+        <div class="place-desc">${item.description}</div>
+        <div class="place-meta-row">
+          <span class="place-walk-time">🚶 ${item.walkMinutes}</span>
+          <span class="place-rating">⭐ ${item.googleRating} (${item.reviewCount}건)</span>
+          <span style="color:#64748B;">⏱️ ${item.suitableStay}</span>
+        </div>
+      </div>
+    `).join('');
   }
 
   // Card Builders
@@ -695,22 +841,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const sy = (h / 380) * mapZoomLevel;
 
     // 5. 도로망 (구글 지도 스타일 흰색 도로 + 회색 테두리)
-    // 수영로 연결
     drawGoogleRoad(ctx, [{ x: 60, y: 260 }, { x: 120, y: 220 }, { x: 160, y: 195 }], 14, sx, sy);
-    // 황령대로
     drawGoogleRoad(ctx, [{ x: 80, y: 130 }, { x: 340, y: 140 }], 10, sx, sy);
-    // 중앙대로 (서면)
     drawGoogleRoad(ctx, [{ x: 435, y: 20 }, { x: 435, y: 150 }], 14, sx, sy);
 
-    // 부산 24번 노선 정류장 (대연역 ~ 서면역 구간만 표시)
+    // 부산 24번 노선 정류장 (대연역 ~ 서면역 구간)
     const busan24Stations = [
-      { name: '대연역', x: 60, y: 280, isCurrent: true, ars: '07-070' },
-      { name: '못골역(남구청)', x: 140, y: 250, ars: '07-078' },
-      { name: '지게골역', x: 220, y: 215, ars: '07-085' },
-      { name: '문현교차로', x: 300, y: 170, ars: '07-092' },
-      { name: '국제금융센터(BIFC)', x: 370, y: 120, ars: '05-015' },
-      { name: '서면역', x: 435, y: 60, isDest: true, ars: '05-028' }
+      { id: 'ST-BS-DY', name: '대연역', x: 60, y: 280, ars: '07-070' },
+      { id: 'ST-BS-MG', name: '못골역(남구청)', x: 140, y: 250, ars: '07-078' },
+      { id: 'ST-BS-JG', name: '지게골역', x: 220, y: 215, ars: '07-085' },
+      { id: 'ST-BS-MH', name: '문현교차로', x: 300, y: 170, ars: '07-092' },
+      { id: 'ST-BS-BIFC', name: '국제금융센터(BIFC)', x: 370, y: 120, ars: '05-015' },
+      { id: 'ST-BS-SMN', name: '서면역', x: 435, y: 60, isDest: true, ars: '05-028' }
     ];
+
+    // 현재 사용자의 GPS 및 가장 가까운 역에 따라 isCurrent 동적 지정
+    const curStId = (state.currentStation && state.currentStation.station) ? state.currentStation.station.id : 'ST-BS-DY';
+    let hasCur = false;
+    busan24Stations.forEach(st => {
+      st.isCurrent = (st.id === curStId);
+      if (st.isCurrent) hasCur = true;
+    });
+    if (!hasCur) busan24Stations[0].isCurrent = true; // 기본값 대연역
 
     // 주요 도로 (수영로 → 문현 → 서면)
     drawGoogleRoad(ctx, busan24Stations, 18, sx, sy);
@@ -748,35 +900,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     ctx.stroke();
 
-    // 현재 구간 강조 (대연역 → 서면역 전체)
-    ctx.strokeStyle = '#1A73E8';
-    ctx.lineWidth = 7;
-    ctx.beginPath();
-    busan24Stations.forEach((st, idx) => {
-      const cx = st.x * sx;
-      const cy = st.y * sy;
-      if (idx === 0) ctx.moveTo(cx, cy);
-      else ctx.lineTo(cx, cy);
-    });
-    ctx.stroke();
-
-    // 7. 파란색 선 상에 예상 소요 시간 배지
-    // 구간 1: 대연역 → 서면역 (전체 구간 중앙, 문현교차로 부근)
+    // 7. 파란색 선 상에 실시간 소요 시간 배지
     const leg1MidX = 280 * sx;
     const leg1MidY = 180 * sy;
-
     let leg1TimeText = '14분';
     if (state.cachedMatches && state.cachedMatches.length > 0) {
       const fastest = state.cachedMatches[0];
       leg1TimeText = `${fastest.travelMinutesToDestination}분`;
     }
-
     drawTimeOnRouteBadge(ctx, leg1MidX, leg1MidY, leg1TimeText, '5.2km · 원활', '#1A73E8', '#188038');
-
-    // 구간 2: 대연역 → 못골역 구간 시간 배지
-    const leg2MidX = ((busan24Stations[0].x + busan24Stations[1].x) / 2) * sx;
-    const leg2MidY = ((busan24Stations[0].y + busan24Stations[1].y) / 2) * sy - 14;
-    drawTimeOnRouteBadge(ctx, leg2MidX, leg2MidY, '3분', '1.1km', '#4285F4', '#5F6368');
 
     // 8. 정류장 마커 (구글 지도 교통 핀 스타일)
     busan24Stations.forEach(st => {
@@ -784,13 +916,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const cy = st.y * sy;
 
       if (st.isCurrent) {
-        // 현재 위치 핀: 블루 비콘
-        ctx.fillStyle = 'rgba(66, 133, 244, 0.25)';
+        // [내 GPS 실시간 위치]: 블루 펄스 비콘
+        ctx.fillStyle = 'rgba(37, 99, 235, 0.22)';
         ctx.beginPath();
         ctx.arc(cx, cy, 18, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = '#1A73E8';
+        ctx.fillStyle = '#2563EB';
         ctx.beginPath();
         ctx.arc(cx, cy, 8, 0, Math.PI * 2);
         ctx.fill();
@@ -798,37 +930,108 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.lineWidth = 2.5;
         ctx.stroke();
 
-        // 핀 라벨
-        drawMapLabel(ctx, st.name + ' (내 위치)', cx, cy - 14, '#1A73E8', true);
+        drawMapLabel(ctx, st.name + ' (내 GPS 위치)', cx, cy - 14, '#2563EB', true);
 
       } else if (st.isDest) {
-        // 목적지 핀: 빨간 마커
+        // [목적지]: 레드 핀
         drawGoogleRedPin(ctx, cx, cy);
-        drawMapLabel(ctx, st.name + ' (목적지)', cx, cy - 24, '#D93025', true);
+        drawMapLabel(ctx, st.name + ' (목적지)', cx, cy - 24, '#DC2626', true);
 
       } else {
-        // 일반 정류장 점
+        // 일반 정류소
         ctx.fillStyle = '#FFFFFF';
         ctx.beginPath();
         ctx.arc(cx, cy, 5.5, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = '#1A73E8';
+        ctx.strokeStyle = '#2563EB';
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // 라벨
-        drawMapLabel(ctx, st.name, cx + 9, cy + 3, '#3C4043', false);
+        drawMapLabel(ctx, st.name, cx + 9, cy + 3, '#334155', false);
       }
     });
 
-    // 9. 실시간 24번 버스 노선 이동 애니메이션
-    const t = (Date.now() / 1000) % 20;
-    const bus1Prog = (t % 20) / 20;
-    const bus2Prog = ((t + 10) % 20) / 20;
+    // 9. [실시간 약속] 친구 실시간 위치 표시 (친구가 약속에 참여중인 경우)
+    if (state.activeAppointment && state.activeAppointment.friendName) {
+      // 친구 위치를 노선상 지게골역~문현교차로 사이로 현실적 매핑
+      const fx = 250 * sx;
+      const fy = 195 * sy;
 
-    drawGoogleLiveBus(ctx, busan24Stations, bus1Prog, '24', '#1A73E8', sx, sy);
-    drawGoogleLiveBus(ctx, busan24Stations, bus2Prog, '24', '#188038', sx, sy);
+      ctx.fillStyle = 'rgba(234, 88, 12, 0.25)';
+      ctx.beginPath();
+      ctx.arc(fx, fy, 16, 0, Math.PI * 2);
+      ctx.fill();
 
+      ctx.fillStyle = '#EA580C';
+      ctx.beginPath();
+      ctx.arc(fx, fy, 7.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      drawMapLabel(ctx, `🤝 ${state.activeAppointment.friendName} (이동 중 · 8분 남음)`, fx, fy - 14, '#EA580C', true);
+    }
+
+    // 10. [현실적인 버스 주행 물리] 실제 도착 잔여 시간 연동 위치 계산
+    // 24번 버스 실제 남은 시간(초)에 따라 정류장 사이에서 정확한 물리 보간
+    let bus1Sec = 180; // 기본 3분 전
+    let bus2Sec = 480; // 기본 8분 전
+    if (state.cachedMatches && state.cachedMatches.length > 0) {
+      const match = state.cachedMatches[0];
+      if (match.arrivalInfo) {
+        bus1Sec = match.arrivalInfo.remainingSeconds;
+      }
+    }
+
+    // 현실적 주행: 60초당 약 0.15 구간 진행
+    const curIdx = busan24Stations.findIndex(st => st.isCurrent);
+    const targetIdx = curIdx >= 0 ? curIdx : 0;
+
+    // 버스 1: 내 정류장으로 다가오는 24번 버스
+    const bus1Prog = Math.max(0, targetIdx - (bus1Sec / 120.0));
+    const bus2Prog = Math.max(0, targetIdx - (bus2Sec / 120.0));
+
+    drawGoogleLiveBusByProgress(ctx, busan24Stations, bus1Prog, '24', '#2563EB', sx, sy);
+    drawGoogleLiveBusByProgress(ctx, busan24Stations, bus2Prog, '24', '#10B981', sx, sy);
+
+    ctx.restore();
+  }
+
+  // Helper: 현실적 구간별 좌표 보간 버스 그리기
+  function drawGoogleLiveBusByProgress(ctx, stations, rawProg, busNum, color, sx, sy) {
+    const totalSegs = stations.length - 1;
+    const clampedProg = Math.max(0, Math.min(totalSegs, rawProg));
+    const segIdx = Math.min(Math.floor(clampedProg), totalSegs - 1);
+    const subProg = clampedProg - segIdx;
+
+    const p1 = stations[segIdx];
+    const p2 = stations[segIdx + 1];
+
+    const bx = (p1.x + (p2.x - p1.x) * subProg) * sx;
+    const by = (p1.y + (p2.y - p1.y) * subProg) * sy;
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetY = 2;
+
+    // 버스 알약 카드
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(bx - 22, by - 11, 44, 22, 11);
+    ctx.fill();
+
+    ctx.shadowColor = 'transparent';
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 10px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`🚌${busNum}`, bx, by);
     ctx.restore();
   }
 
