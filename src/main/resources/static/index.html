@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>스마트 버스 라우트 | 실시간 위치기반 버스 도착 및 목적지 안내</title>
   <link rel="stylesheet" href="/app.css">
+  <!-- LEAFLET REAL MAP CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <!-- BUS SVG FAVICON -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%232563EB'><path d='M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z'/></svg>">
 </head>
@@ -153,33 +156,18 @@
       <!-- RIGHT COLUMN: INTERACTIVE MAP & FAVORITES -->
       <div class="right-column">
 
-        <!-- GOOGLE MAPS STYLE INTERACTIVE MAP -->
+        <!-- REAL INTERACTIVE MAP (LEAFLET + REAL STREET TILES) -->
         <div class="interactive-map-card">
           <div class="map-card-head">
             <div class="map-card-heading">
               <span>🗺️</span> 실시간 노선도 및 주행 현황
-              <span class="google-map-tag">Google Maps 기반</span>
+              <span class="google-map-tag">실제 인터랙티브 지도 (확대/축소/이동 가능)</span>
             </div>
             <span style="font-size: 11px; color: var(--text-hint);" id="liveClock">실시간 동기화</span>
           </div>
 
-          <div class="canvas-wrapper">
-            <!-- GOOGLE MAPS CONTROLS -->
-            <div class="gmap-controls-overlay">
-              <button class="gmap-btn-type active" id="btnMapDefault">기본</button>
-              <button class="gmap-btn-type" id="btnMapTransit">대중교통</button>
-            </div>
-
-            <div class="gmap-zoom-controls">
-              <button class="gmap-zoom-btn" id="btnZoomIn" title="확대">+</button>
-              <button class="gmap-zoom-btn" id="btnZoomOut" title="축소">&minus;</button>
-            </div>
-
-            <div class="gmap-watermark">
-              <span class="g-blue">G</span><span class="g-red">o</span><span class="g-yellow">o</span><span class="g-blue">g</span><span class="g-green">l</span><span class="g-red">e</span>
-            </div>
-
-            <canvas id="routeMapCanvas"></canvas>
+          <div class="canvas-wrapper" style="position: relative;">
+            <div id="realLeafletMap" style="width: 100%; height: 100%; z-index: 1;"></div>
           </div>
         </div>
 

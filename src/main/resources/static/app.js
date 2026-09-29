@@ -46,10 +46,8 @@ document.addEventListener('DOMContentLoaded', () => {
     favoritesGrid: document.getElementById('favoritesGrid'),
     favCountBadge: document.getElementById('favCountBadge'),
     liveClock: document.getElementById('liveClock'),
-    canvas: document.getElementById('routeMapCanvas')
+    mapContainer: document.getElementById('realLeafletMap')
   };
-
-  const ctx = el.canvas ? el.canvas.getContext('2d') : null;
 
   // Initialize
   init();
@@ -155,16 +153,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-  }
-
-  function resizeCanvas() {
-    if (!el.canvas) return;
-    const rect = el.canvas.parentElement.getBoundingClientRect();
-    el.canvas.width = rect.width;
-    el.canvas.height = rect.height;
-    drawMap();
+    window.addEventListener('resize', () => {
+      if (leafletMap) leafletMap.invalidateSize();
+    });
   }
 
   // Device GPS
@@ -737,522 +728,179 @@ document.addEventListener('DOMContentLoaded', () => {
     return 'chip-trunk';
   }
 
-  // GOOGLE MAPS STYLE CANVAS RENDERER & TIME-ON-ROUTE BADGES
-  let mapZoomLevel = 1.0;
-  let isTransitLayerActive = true;
+  // ========================================================
+  // REAL INTERACTIVE MAP ENGINE (LEAFLET + REAL STREET TILES)
+  // ========================================================
+  let leafletMap = null;
+  let busPolyline = null;
+  let stationMarkersGroup = null;
+  let liveBusMarkersGroup = null;
+  let userPinMarker = null;
+  let friendPinMarker = null;
 
-  // Zoom control buttons
-  const btnZoomIn = document.getElementById('btnZoomIn');
-  const btnZoomOut = document.getElementById('btnZoomOut');
-  const btnMapDefault = document.getElementById('btnMapDefault');
-  const btnMapTransit = document.getElementById('btnMapTransit');
+  // 부산 24번 버스 대연역 ~ 서면역 실제 도로 GPS 위경도 경로 (도로를 따라 정밀 매핑)
+  const busan24RoadCoords = [
+    [35.13550, 129.09200], // 대연역 (부산고려병원)
+    [35.13570, 129.08800], // 수영로 도로 커브
+    [35.13600, 129.08450], // 못골역 (남구청)
+    [35.13660, 129.08000], // 대연고개
+    [35.13720, 129.07600], // 지게골역
+    [35.13810, 129.07100], // 문현로 축
+    [35.13900, 129.06650], // 문현교차로 (문현역)
+    [35.14350, 129.06550], // 금융거리 진입
+    [35.14800, 129.06450], // 국제금융센터·부산은행역 (BIFC 63빌딩)
+    [35.15200, 129.06200], // 범내골 교차로 방면
+    [35.15500, 129.06050], // 중앙대로 진입
+    [35.15780, 129.05920]  // 서면역 (서면지하상가)
+  ];
 
-  if (btnZoomIn) {
-    btnZoomIn.addEventListener('click', () => {
-      mapZoomLevel = Math.min(1.5, mapZoomLevel + 0.15);
-      drawMap();
+  // 주요 정류소 정보 (실제 GPS)
+  const realStations = [
+    { id: 'ST-BS-DY', name: '대연역 (부산고려병원)', lat: 35.13550, lng: 129.09200, ars: '07-070', sub: '부산2호선' },
+    { id: 'ST-BS-MG', name: '못골역 (남구청)', lat: 35.13600, lng: 129.08450, ars: '07-078', sub: '부산2호선' },
+    { id: 'ST-BS-JG', name: '지게골역', lat: 35.13720, lng: 129.07600, ars: '07-085', sub: '부산2호선' },
+    { id: 'ST-BS-MH', name: '문현교차로 (문현역)', lat: 35.13900, lng: 129.06650, ars: '07-092', sub: '부산2호선' },
+    { id: 'ST-BS-BIFC', name: '국제금융센터·부산은행역', lat: 35.14800, lng: 129.06450, ars: '05-015', sub: 'BIFC 63빌딩' },
+    { id: 'ST-BS-SMN', name: '서면역 (서면지하상가)', lat: 35.15780, lng: 129.05920, isDest: true, ars: '05-028', sub: '1·2호선 환승역' }
+  ];
+
+  function initRealLeafletMap() {
+    if (!el.mapContainer || leafletMap) return;
+
+    // 대연역과 서면역 사이 중앙에 카메라 포커스
+    leafletMap = L.map(el.mapContainer, {
+      center: [35.1450, 129.0750],
+      zoom: 14,
+      zoomControl: true
     });
-  }
-  if (btnZoomOut) {
-    btnZoomOut.addEventListener('click', () => {
-      mapZoomLevel = Math.max(0.8, mapZoomLevel - 0.15);
-      drawMap();
-    });
-  }
-  if (btnMapDefault && btnMapTransit) {
-    btnMapDefault.addEventListener('click', () => {
-      btnMapDefault.classList.add('active');
-      btnMapTransit.classList.remove('active');
-      isTransitLayerActive = false;
-      drawMap();
-    });
-    btnMapTransit.addEventListener('click', () => {
-      btnMapTransit.classList.add('active');
-      btnMapDefault.classList.remove('active');
-      isTransitLayerActive = true;
-      drawMap();
-    });
+
+    // CartoDB Voyager 타일 (구글 지도 스타일의 깨끗하고 세련된 실제 도로/건물 타일)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(leafletMap);
+
+    stationMarkersGroup = L.layerGroup().addTo(leafletMap);
+    liveBusMarkersGroup = L.layerGroup().addTo(leafletMap);
+
+    // 실제 도로를 따라 달리는 파란색 노선선 (Google Transit Blue)
+    busPolyline = L.polyline(busan24RoadCoords, {
+      color: '#1A73E8',
+      weight: 6,
+      opacity: 0.85,
+      smoothFactor: 1
+    }).addTo(leafletMap);
+
+    // 노선 클릭 시 전체 경로 보기
+    busPolyline.bindPopup('<b>🚌 부산 24번 버스 노선축</b><br>대연역 ➔ 못골역 ➔ 지게골역 ➔ 문현교차로 ➔ BIFC ➔ 서면역');
+
+    renderRealMapElements();
   }
 
   function drawMap() {
-    if (!ctx) return;
-    const w = el.canvas.width;
-    const h = el.canvas.height;
-
-    ctx.clearRect(0, 0, w, h);
-    ctx.save();
-
-    // 1. Google Maps Base Background (Soft Map Gray)
-    ctx.fillStyle = '#F1F3F4';
-    ctx.fillRect(0, 0, w, h);
-
-    // 2. 부산 해안선 및 수영만 바다
-    ctx.fillStyle = '#C4E1F6';
-    ctx.beginPath();
-    ctx.moveTo(w * 0.55, h);
-    ctx.bezierCurveTo(w * 0.65, h * 0.80, w * 0.80, h * 0.72, w, h * 0.65);
-    ctx.lineTo(w, h);
-    ctx.closePath();
-    ctx.fill();
-
-    // 광안대교 점선
-    ctx.strokeStyle = '#93C5FD';
-    ctx.lineWidth = 3;
-    ctx.setLineDash([4, 3]);
-    ctx.beginPath();
-    ctx.moveTo(w * 0.60, h * 0.85);
-    ctx.quadraticCurveTo(w * 0.78, h * 0.78, w * 0.95, h * 0.70);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    ctx.fillStyle = '#60A5FA';
-    ctx.font = 'bold 9px sans-serif';
-    ctx.fillText('광안대교', w * 0.72, h * 0.76);
-    ctx.fillText('수영만', w * 0.80, h * 0.90);
-
-    // 3. 황령산 녹지 공원 영역
-    ctx.fillStyle = '#CEEAD6';
-    ctx.beginPath();
-    ctx.roundRect(w * 0.22, 15, w * 0.40, h * 0.28, 16);
-    ctx.fill();
-
-    ctx.fillStyle = '#166534';
-    ctx.font = 'bold 9px -apple-system, sans-serif';
-    ctx.fillText('황령산 유원지', w * 0.35, 35);
-
-    // 4. 세부 도심 블록 (#E8EAED)
-    ctx.fillStyle = '#E8EAED';
-    const blockRows = [
-      { x: 20, y: 30, bw: 65, bh: 50 },
-      { x: 95, y: 30, bw: 55, bh: 50 },
-      { x: 20, y: 100, bw: 70, bh: 45 },
-      { x: 100, y: 100, bw: 65, bh: 45 },
-      { x: 20, y: 190, bw: 45, bh: 65 },
-      { x: 180, y: 220, bw: 80, bh: 50 },
-      { x: 270, y: 190, bw: 75, bh: 45 },
-      { x: 330, y: 140, bw: 60, bh: 40 },
-      { x: 400, y: 90, bw: 70, bh: 60 },
-      { x: 410, y: 20, bw: 60, bh: 55 }
-    ];
-    blockRows.forEach(b => {
-      ctx.beginPath();
-      ctx.roundRect(b.x * (w / 480), b.y * (h / 380), b.bw * (w / 480), b.bh * (h / 380), 3);
-      ctx.fill();
-    });
-
-    const sx = (w / 480) * mapZoomLevel;
-    const sy = (h / 380) * mapZoomLevel;
-
-    // 5. 도로망 (구글 지도 스타일 화이트 도로 + 그레이 테두리)
-    // 보조 골목길 / 이면도로 (#FFFFFF, 얇은 너비)
-    drawGoogleRoad(ctx, [{ x: 20, y: 90 }, { x: 460, y: 90 }], 6, sx, sy);
-    drawGoogleRoad(ctx, [{ x: 20, y: 160 }, { x: 320, y: 160 }], 7, sx, sy);
-    drawGoogleRoad(ctx, [{ x: 170, y: 20 }, { x: 170, y: 350 }], 7, sx, sy);
-    drawGoogleRoad(ctx, [{ x: 350, y: 20 }, { x: 350, y: 350 }], 8, sx, sy);
-
-    // 주요 간선도로
-    drawGoogleRoad(ctx, [{ x: 60, y: 260 }, { x: 120, y: 220 }, { x: 160, y: 195 }], 12, sx, sy);
-    drawGoogleRoad(ctx, [{ x: 80, y: 130 }, { x: 380, y: 140 }], 12, sx, sy);
-    drawGoogleRoad(ctx, [{ x: 435, y: 10 }, { x: 435, y: 200 }], 16, sx, sy);
-
-    // 부산 24번 노선 정류장 (대연역 ~ 서면역 구간)
-    const busan24Stations = [
-      { id: 'ST-BS-DY', name: '대연역', x: 60, y: 280, ars: '07-070', sub: '부산2호선' },
-      { id: 'ST-BS-MG', name: '못골역', x: 140, y: 250, ars: '07-078', sub: '남구청' },
-      { id: 'ST-BS-JG', name: '지게골역', x: 220, y: 215, ars: '07-085', sub: '부산2호선' },
-      { id: 'ST-BS-MH', name: '문현교차로', x: 300, y: 170, ars: '07-092', sub: '금융로' },
-      { id: 'ST-BS-BIFC', name: '국제금융센터', x: 370, y: 120, ars: '05-015', sub: 'BIFC 63빌딩' },
-      { id: 'ST-BS-SMN', name: '서면역', x: 435, y: 60, isDest: true, ars: '05-028', sub: '1·2호선 환승' }
-    ];
-
-    // 현재 사용자의 GPS 및 가장 가까운 역 동적 지정
-    const curStId = (state.currentStation && state.currentStation.station) ? state.currentStation.station.id : 'ST-BS-DY';
-    let hasCur = false;
-    busan24Stations.forEach(st => {
-      st.isCurrent = (st.id === curStId);
-      if (st.isCurrent) hasCur = true;
-    });
-    if (!hasCur) busan24Stations[0].isCurrent = true;
-
-    // 주 간선대로 (수영로 축)
-    drawGoogleRoad(ctx, busan24Stations, 18, sx, sy);
-
-    // [REAL GOOGLE MAPS POI] 실제 주변 상가, 병원, 은행, 서점, 카페 랜드마크 마커
-    const googleMapPois = [
-      { name: '스타벅스 대연역점', x: 40, y: 250, cat: 'cafe', icon: '☕', color: '#10B981' },
-      { name: '부산남구청', x: 155, y: 285, cat: 'gov', icon: '🏛️', color: '#3B82F6' },
-      { name: '못골골목시장', x: 125, y: 210, cat: 'shop', icon: '🛒', color: '#F59E0B' },
-      { name: '문현이마트', x: 275, y: 235, cat: 'mart', icon: '🛍️', color: '#F59E0B' },
-      { name: '부산국제금융센터(63층)', x: 385, y: 155, cat: 'bldg', icon: '🏢', color: '#475569' },
-      { name: '블랙업커피 본점', x: 450, y: 100, cat: 'cafe', icon: '☕', color: '#10B981' },
-      { name: '교보문고 부산점', x: 460, y: 35, cat: 'book', icon: '📚', color: '#6366F1' },
-      { name: '서면지하도상가', x: 405, y: 30, cat: 'shop', icon: '🛍️', color: '#EC4899' },
-      { name: '롯데백화점 부산본점', x: 455, y: 65, cat: 'dept', icon: '🏬', color: '#EF4444' }
-    ];
-
-    // POI 렌더링 (구글 지도 둥근 뱃지 + 상호명)
-    googleMapPois.forEach(poi => {
-      drawGooglePoiMarker(ctx, poi, sx, sy);
-    });
-
-    // 도로명 표시 (구글 맵 타이포그래피)
-    ctx.fillStyle = '#5F6368';
-    ctx.font = '500 10px Roboto, sans-serif';
-    ctx.fillText('수영로 (부산 2호선 축)', 95 * sx, 275 * sy);
-    ctx.fillText('중앙대로 (서면 중심가)', 350 * sx, 20 * sy);
-    ctx.fillText('황령대로 (터널 방면)', 180 * sx, 125 * sy);
-    ctx.fillText('전포대로 (카페거리)', 410 * sx, 150 * sy);
-
-    // 6. 구글 지도 스타일 블루 노선 폴리라인 (24번 버스 주행축)
-    ctx.strokeStyle = '#1967D2';
-    ctx.lineWidth = 8;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
-    busan24Stations.forEach((st, idx) => {
-      const cx = st.x * sx;
-      const cy = st.y * sy;
-      if (idx === 0) ctx.moveTo(cx, cy);
-      else ctx.lineTo(cx, cy);
-    });
-    ctx.stroke();
-
-    ctx.strokeStyle = '#4285F4';
-    ctx.lineWidth = 5;
-    ctx.beginPath();
-    busan24Stations.forEach((st, idx) => {
-      const cx = st.x * sx;
-      const cy = st.y * sy;
-      if (idx === 0) ctx.moveTo(cx, cy);
-      else ctx.lineTo(cx, cy);
-    });
-    ctx.stroke();
-
-    // 7. 파란색 선 상에 실시간 소요 시간 배지
-    const leg1MidX = 280 * sx;
-    const leg1MidY = 180 * sy;
-    let leg1TimeText = '14분';
-    if (state.cachedMatches && state.cachedMatches.length > 0) {
-      const fastest = state.cachedMatches[0];
-      leg1TimeText = `${fastest.travelMinutesToDestination}분`;
+    if (!leafletMap) {
+      initRealLeafletMap();
+    } else {
+      renderRealMapElements();
     }
-    drawTimeOnRouteBadge(ctx, leg1MidX, leg1MidY, leg1TimeText, '5.2km · 원활', '#1A73E8', '#188038');
+  }
 
-    // 8. 정류장 마커 (구글 지도 버스정류장 & 지하철역 핀 스타일)
-    busan24Stations.forEach(st => {
-      const cx = st.x * sx;
-      const cy = st.y * sy;
+  function renderRealMapElements() {
+    if (!leafletMap || !stationMarkersGroup || !liveBusMarkersGroup) return;
 
-      if (st.isCurrent) {
-        // [내 GPS 실시간 위치]: 블루 펄스 비콘
-        ctx.fillStyle = 'rgba(37, 99, 235, 0.25)';
-        ctx.beginPath();
-        ctx.arc(cx, cy, 18, 0, Math.PI * 2);
-        ctx.fill();
+    stationMarkersGroup.clearLayers();
+    liveBusMarkersGroup.clearLayers();
 
-        ctx.fillStyle = '#2563EB';
-        ctx.beginPath();
-        ctx.arc(cx, cy, 8, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#FFFFFF';
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
-
-        drawMapLabel(ctx, `📍 ${st.name} (내 위치)`, cx, cy - 14, '#2563EB', true);
-
+    // 1. 실제 정류소 핀 렌더링
+    realStations.forEach(st => {
+      const isCur = (state.currentStation && state.currentStation.station && state.currentStation.station.id === st.id) || (st.id === 'ST-BS-DY' && !state.currentStation);
+      
+      let iconHtml = '';
+      if (isCur) {
+        iconHtml = `<div class="leaflet-current-pin" title="${st.name}"></div>`;
       } else if (st.isDest) {
-        // [목적지]: 구글 레드 핀
-        drawGoogleRedPin(ctx, cx, cy);
-        drawMapLabel(ctx, `🚩 ${st.name} (약속 목적지)`, cx, cy - 24, '#DC2626', true);
-
+        iconHtml = `<div class="leaflet-dest-pin" title="${st.name}"></div>`;
       } else {
-        // 구글 대중교통 역/정류소 심볼 (원형 + 버스 아이콘 느낌)
-        ctx.fillStyle = '#FFFFFF';
-        ctx.beginPath();
-        ctx.arc(cx, cy, 6, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#2563EB';
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
-
-        // 중앙 파란 점
-        ctx.fillStyle = '#2563EB';
-        ctx.beginPath();
-        ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
-        ctx.fill();
-
-        drawMapLabel(ctx, `🚏 ${st.name}`, cx + 10, cy + 4, '#1E293B', false);
+        iconHtml = `<div class="leaflet-station-pin" title="${st.name}"></div>`;
       }
+
+      const customIcon = L.divIcon({
+        className: 'custom-station-wrapper',
+        html: iconHtml,
+        iconSize: [18, 18],
+        iconAnchor: [9, 9]
+      });
+
+      const marker = L.marker([st.lat, st.lng], { icon: customIcon }).addTo(stationMarkersGroup);
+      marker.bindPopup(`
+        <div style="font-family:-apple-system, sans-serif; font-size:12px; min-width:140px;">
+          <strong style="font-size:14px; color:#1E293B;">🚏 ${st.name}</strong><br>
+          <span style="color:#64748B;">ARS ${st.ars} · ${st.sub}</span><br>
+          <span style="display:inline-block; margin-top:4px; padding:2px 6px; background:#EFF6FF; color:#2563EB; font-weight:700; border-radius:4px;">
+            ${isCur ? '📍 현재 내 위치' : (st.isDest ? '🚩 약속 목적지' : '정차 정류소')}
+          </span>
+        </div>
+      `);
     });
 
-    // 9. [실시간 약속] 친구 실시간 위치 표시
+    // 2. [실시간 약속] 친구 실시간 GPS 핀 (실제 문현~지게골 사이 도로 좌표)
     if (state.activeAppointment && state.activeAppointment.friendName) {
-      const fx = 250 * sx;
-      const fy = 195 * sy;
+      const friendLat = 35.1415;
+      const friendLng = 129.0660;
+      const friendIcon = L.divIcon({
+        className: 'friend-pin-wrapper',
+        html: `<div class="leaflet-friend-pin"></div>`,
+        iconSize: [18, 18],
+        iconAnchor: [9, 9]
+      });
 
-      ctx.fillStyle = 'rgba(234, 88, 12, 0.25)';
-      ctx.beginPath();
-      ctx.arc(fx, fy, 16, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = '#EA580C';
-      ctx.beginPath();
-      ctx.arc(fx, fy, 7.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#FFFFFF';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      drawMapLabel(ctx, `🤝 ${state.activeAppointment.friendName} (이동 중 · 8분 남음)`, fx, fy - 14, '#EA580C', true);
+      const friendMarker = L.marker([friendLat, friendLng], { icon: friendIcon }).addTo(stationMarkersGroup);
+      friendMarker.bindPopup(`
+        <div style="font-size:12px;">
+          <strong style="color:#EA580C; font-size:13px;">🤝 ${state.activeAppointment.friendName}</strong><br>
+          <span>실시간 이동 중 (서면 도착 8분 전)</span>
+        </div>
+      `).openPopup();
     }
 
-    // 10. [현실적 버스 주행] 24번 버스
+    // 3. 실제 도착 시간과 연동되어 도로 위를 달리는 24번 버스 마커
     let bus1Sec = 180;
-    let bus2Sec = 480;
-    if (state.cachedMatches && state.cachedMatches.length > 0) {
-      const match = state.cachedMatches[0];
-      if (match.arrivalInfo) {
-        bus1Sec = match.arrivalInfo.remainingSeconds;
-      }
+    if (state.cachedMatches && state.cachedMatches.length > 0 && state.cachedMatches[0].arrivalInfo) {
+      bus1Sec = state.cachedMatches[0].arrivalInfo.remainingSeconds;
     }
 
-    const curIdx = busan24Stations.findIndex(st => st.isCurrent);
-    const targetIdx = curIdx >= 0 ? curIdx : 0;
-
-    const bus1Prog = Math.max(0, targetIdx - (bus1Sec / 120.0));
-    const bus2Prog = Math.max(0, targetIdx - (bus2Sec / 120.0));
-
-    drawGoogleLiveBusByProgress(ctx, busan24Stations, bus1Prog, '24', '#2563EB', sx, sy);
-    drawGoogleLiveBusByProgress(ctx, busan24Stations, bus2Prog, '24', '#10B981', sx, sy);
-
-    ctx.restore();
-  }
-
-  // 헬퍼: 구글 지도 상가/상점/랜드마크 POI 렌더러
-  function drawGooglePoiMarker(ctx, poi, sx, sy) {
-    const px = poi.x * sx;
-    const py = poi.y * sy;
-
-    ctx.save();
-    // POI 아이콘 원형 카드
-    ctx.fillStyle = '#FFFFFF';
-    ctx.beginPath();
-    ctx.arc(px, py, 7, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = poi.color;
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    // 이모지 심볼
-    ctx.font = '8px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(poi.icon, px, py + 0.5);
-
-    // 상가명 텍스트 (구글 스타일 서체 & 흰색 외곽선)
-    ctx.font = '500 8.5px -apple-system, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
-    ctx.lineWidth = 3;
-    ctx.strokeText(poi.name, px + 9, py);
-
-    ctx.fillStyle = '#475569';
-    ctx.fillText(poi.name, px + 9, py);
-    ctx.restore();
-  }
-
-  // Helper: 현실적 구간별 좌표 보간 버스 그리기
-  function drawGoogleLiveBusByProgress(ctx, stations, rawProg, busNum, color, sx, sy) {
-    const totalSegs = stations.length - 1;
-    const clampedProg = Math.max(0, Math.min(totalSegs, rawProg));
-    const segIdx = Math.min(Math.floor(clampedProg), totalSegs - 1);
-    const subProg = clampedProg - segIdx;
-
-    const p1 = stations[segIdx];
-    const p2 = stations[segIdx + 1];
-
-    const bx = (p1.x + (p2.x - p1.x) * subProg) * sx;
-    const by = (p1.y + (p2.y - p1.y) * subProg) * sy;
-
-    ctx.save();
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
-    ctx.shadowBlur = 4;
-    ctx.shadowOffsetY = 2;
-
-    // 버스 알약 카드
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.roundRect(bx - 22, by - 11, 44, 22, 11);
-    ctx.fill();
-
-    ctx.shadowColor = 'transparent';
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 10px -apple-system, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`🚌${busNum}`, bx, by);
-    ctx.restore();
-  }
-
-  // 헬퍼: 구글 지도 스타일 도로 그리기
-  function drawGoogleRoad(ctx, points, width, sx, sy) {
-    if (points.length < 2) return;
-    // 외곽 테두리
-    ctx.strokeStyle = '#DADCE0';
-    ctx.lineWidth = width + 2;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
-    points.forEach((p, i) => {
-      const px = p.x * sx;
-      const py = p.y * sy;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
+    // 도로 좌표 배열에서 보간 위치 계산
+    const busCoord = interpolateRoadPosition(busan24RoadCoords, bus1Sec);
+    const busIcon = L.divIcon({
+      className: 'bus-icon-wrapper',
+      html: `<div class="leaflet-bus-icon">🚌 24번 (${Math.max(1, Math.round(bus1Sec / 60))}분 전)</div>`,
+      iconSize: [100, 24],
+      iconAnchor: [50, 12]
     });
-    ctx.stroke();
 
-    // 내부 흰색 도로
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = width;
-    ctx.beginPath();
-    points.forEach((p, i) => {
-      const px = p.x * sx;
-      const py = p.y * sy;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    });
-    ctx.stroke();
+    const liveBusMarker = L.marker(busCoord, { icon: busIcon }).addTo(liveBusMarkersGroup);
+    liveBusMarker.bindPopup(`<b>🚌 부산 24번 버스</b><br>서면 방면 운행 중<br>도착 예정: 약 ${Math.max(1, Math.round(bus1Sec / 60))}분 후`);
   }
 
-  // 헬퍼: 파란색 선 상 시간 배지 (구글 내비게이션 스타일)
-  function drawTimeOnRouteBadge(ctx, x, y, timeText, subText, accentColor, statusColor) {
-    ctx.save();
+  // 실제 도로 좌표 리스트 위에서 남은 시간에 따라 부드럽게 위치 보간하는 함수
+  function interpolateRoadPosition(coords, remainingSeconds) {
+    if (!coords || coords.length === 0) return [35.13550, 129.09200];
+    // 시간이 적을수록 목적지(배열 끝)에 가까워짐
+    const totalPoints = coords.length - 1;
+    // 0초면 서면역(끝), 600초(10분)면 대연역(시작)
+    const factor = Math.max(0, Math.min(1, 1 - (remainingSeconds / 600.0)));
+    const targetIndex = factor * totalPoints;
+    const idx = Math.min(Math.floor(targetIndex), totalPoints - 1);
+    const subProg = targetIndex - idx;
 
-    const pillWidth = 92;
-    const pillHeight = 24;
-    const bx = x - pillWidth / 2;
-    const by = y - pillHeight / 2;
+    const p1 = coords[idx];
+    const p2 = coords[idx + 1];
 
-    // 그림자
-    ctx.shadowColor = 'rgba(60, 64, 67, 0.28)';
-    ctx.shadowBlur = 6;
-    ctx.shadowOffsetY = 2;
-
-    // 흰색 알약 카드
-    ctx.fillStyle = '#FFFFFF';
-    ctx.beginPath();
-    ctx.roundRect(bx, by, pillWidth, pillHeight, 12);
-    ctx.fill();
-
-    // 테두리
-    ctx.shadowColor = 'transparent';
-    ctx.strokeStyle = '#DADCE0';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    // 시계 아이콘
-    ctx.fillStyle = accentColor;
-    ctx.font = '10px sans-serif';
-    ctx.fillText('⏱️', bx + 6, by + 16);
-
-    // 소요 시간
-    ctx.fillStyle = '#202124';
-    ctx.font = 'bold 11px -apple-system, Roboto, sans-serif';
-    ctx.fillText(timeText, bx + 22, by + 16);
-
-    // 거리 및 상태 표시
-    ctx.fillStyle = statusColor;
-    ctx.font = '9px -apple-system, Roboto, sans-serif';
-    const subX = bx + 22 + ctx.measureText(timeText).width + 5;
-    ctx.fillText(subText, subX, by + 16);
-
-    ctx.restore();
-  }
-
-  // 헬퍼: 구글 빨간 목적지 핀 마커
-  function drawGoogleRedPin(ctx, x, y) {
-    ctx.save();
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-    ctx.shadowBlur = 5;
-    ctx.shadowOffsetY = 2;
-
-    // 핀 본체
-    ctx.fillStyle = '#EA4335';
-    ctx.beginPath();
-    ctx.arc(x, y - 10, 8, 0, Math.PI * 2);
-    ctx.moveTo(x - 6, y - 8);
-    ctx.lineTo(x, y);
-    ctx.lineTo(x + 6, y - 8);
-    ctx.fill();
-
-    // 내부 흰 점
-    ctx.shadowColor = 'transparent';
-    ctx.fillStyle = '#FFFFFF';
-    ctx.beginPath();
-    ctx.arc(x, y - 10, 3.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.restore();
-  }
-
-  // 헬퍼: 지도 정류장 라벨
-  function drawMapLabel(ctx, text, x, y, color, isBold) {
-    ctx.save();
-    ctx.font = (isBold ? 'bold 11px' : '500 10px') + ' -apple-system, Roboto, sans-serif';
-
-    // 가독성을 위한 흰 외곽선
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 3;
-    ctx.strokeText(text, x, y);
-
-    ctx.fillStyle = color;
-    ctx.fillText(text, x, y);
-    ctx.restore();
-  }
-
-  // 헬퍼: 실시간 버스 차량 노선 이동
-  function drawGoogleLiveBus(ctx, stations, progress, busNum, color, sx, sy) {
-    const segCount = stations.length - 1;
-    const segIndex = Math.min(Math.floor(progress * segCount), segCount - 1);
-    const subProg = (progress * segCount) - segIndex;
-
-    const p1 = stations[segIndex];
-    const p2 = stations[segIndex + 1];
-
-    const bx = (p1.x + (p2.x - p1.x) * subProg) * sx;
-    const by = (p1.y + (p2.y - p1.y) * subProg) * sy;
-
-    ctx.save();
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
-    ctx.shadowBlur = 4;
-    ctx.shadowOffsetY = 2;
-
-    // 버스 알약 모양
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.roundRect(bx - 20, by - 11, 40, 22, 11);
-    ctx.fill();
-
-    // 흰 테두리
-    ctx.shadowColor = 'transparent';
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // 버스 번호 텍스트
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 10px -apple-system, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`🚌${busNum}`, bx, by);
-
-    ctx.restore();
+    const lat = p1[0] + (p2[0] - p1[0]) * subProg;
+    const lng = p1[1] + (p2[1] - p1[1]) * subProg;
+    return [lat, lng];
   }
 
 });
+
