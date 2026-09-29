@@ -764,22 +764,38 @@ document.addEventListener('DOMContentLoaded', () => {
     { id: 'ST-BS-SMN', name: '서면역 (서면지하상가)', lat: 35.15780, lng: 129.05920, isDest: true, ars: '05-028', sub: '1·2호선 환승역' }
   ];
 
+  // 지도 타일 레이어 객체
+  let currentTileLayer = null;
+  const tileLayers = {
+    // 1. Google Maps 실제 일반 지도 (실제 도로, 건물, 골목, 랜드마크 고해상도 한글 표기)
+    google: L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+      maxZoom: 20,
+      attribution: '&copy; Google Maps'
+    }),
+    // 2. Google Maps 실제 위성 + 도로명 하이브리드 지도 (실제 건물 옥상, 항공뷰, 도로망)
+    hybrid: L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+      maxZoom: 20,
+      attribution: '&copy; Google Satellite'
+    }),
+    // 3. OpenStreetMap 상세 골목 지도 (세부 지번, 상가명, 횡단보도 정밀 표시)
+    osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    })
+  };
+
   function initRealLeafletMap() {
     if (!el.mapContainer || leafletMap) return;
 
-    // 대연역과 서면역 사이 중앙에 카메라 포커스
+    // 대연역과 서면역 사이 중앙에 카메라 포커스 (기본 줌 레벨 14.5로 도로/상가가 선명히 보이게 설정)
     leafletMap = L.map(el.mapContainer, {
-      center: [35.1450, 129.0750],
-      zoom: 14,
+      center: [35.1465, 129.0740],
+      zoom: 14.5,
       zoomControl: true
     });
 
-    // CartoDB Voyager 타일 (구글 지도 스타일의 깨끗하고 세련된 실제 도로/건물 타일)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
-      subdomains: 'abcd',
-      maxZoom: 19
-    }).addTo(leafletMap);
+    // 기본 레이어: Google Maps 실제 도로/건물 지도 적용!
+    currentTileLayer = tileLayers.google.addTo(leafletMap);
 
     stationMarkersGroup = L.layerGroup().addTo(leafletMap);
     liveBusMarkersGroup = L.layerGroup().addTo(leafletMap);
@@ -792,10 +808,55 @@ document.addEventListener('DOMContentLoaded', () => {
       smoothFactor: 1
     }).addTo(leafletMap);
 
-    // 노선 클릭 시 전체 경로 보기
-    busPolyline.bindPopup('<b>🚌 부산 24번 버스 노선축</b><br>대연역 ➔ 못골역 ➔ 지게골역 ➔ 문현교차로 ➔ BIFC ➔ 서면역');
+    busPolyline.bindPopup('<b>🚌 부산 24번 버스 실제 도로 노선축</b><br>대연역 ➔ 못골역 ➔ 지게골역 ➔ 문현교차로 ➔ BIFC ➔ 서면역');
+
+    // 지도 타일 전환 버튼 이벤트 바인딩
+    setupTileSwitcherEvents();
 
     renderRealMapElements();
+  }
+
+  function setupTileSwitcherEvents() {
+    const btnGoogle = document.getElementById('btnTileGoogle');
+    const btnHybrid = document.getElementById('btnTileHybrid');
+    const btnOsm = document.getElementById('btnTileOsm');
+
+    function setActiveBtn(activeBtn) {
+      [btnGoogle, btnHybrid, btnOsm].forEach(btn => {
+        if (!btn) return;
+        if (btn === activeBtn) {
+          btn.style.background = '#2563EB';
+          btn.style.color = '#FFFFFF';
+          btn.style.borderColor = '#2563EB';
+        } else {
+          btn.style.background = '#FFFFFF';
+          btn.style.color = '#334155';
+          btn.style.borderColor = '#CBD5E1';
+        }
+      });
+    }
+
+    if (btnGoogle) {
+      btnGoogle.addEventListener('click', () => {
+        if (currentTileLayer) leafletMap.removeLayer(currentTileLayer);
+        currentTileLayer = tileLayers.google.addTo(leafletMap);
+        setActiveBtn(btnGoogle);
+      });
+    }
+    if (btnHybrid) {
+      btnHybrid.addEventListener('click', () => {
+        if (currentTileLayer) leafletMap.removeLayer(currentTileLayer);
+        currentTileLayer = tileLayers.hybrid.addTo(leafletMap);
+        setActiveBtn(btnHybrid);
+      });
+    }
+    if (btnOsm) {
+      btnOsm.addEventListener('click', () => {
+        if (currentTileLayer) leafletMap.removeLayer(currentTileLayer);
+        currentTileLayer = tileLayers.osm.addTo(leafletMap);
+        setActiveBtn(btnOsm);
+      });
+    }
   }
 
   function drawMap() {
@@ -833,6 +894,15 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       const marker = L.marker([st.lat, st.lng], { icon: customIcon }).addTo(stationMarkersGroup);
+      
+      // 정류소 이름을 지도 위에 항상 표시 (클릭하지 않아도 이름 확인 가능)
+      marker.bindTooltip(`<b>${st.name.split(' ')[0]}</b>`, {
+        permanent: true,
+        direction: 'bottom',
+        offset: [0, 8],
+        className: 'station-tooltip'
+      });
+
       marker.bindPopup(`
         <div style="font-family:-apple-system, sans-serif; font-size:12px; min-width:140px;">
           <strong style="font-size:14px; color:#1E293B;">🚏 ${st.name}</strong><br>
