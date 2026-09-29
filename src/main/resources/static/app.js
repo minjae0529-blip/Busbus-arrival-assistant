@@ -820,63 +820,92 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.font = 'bold 9px -apple-system, sans-serif';
     ctx.fillText('황령산 유원지', w * 0.35, 35);
 
-    // 4. 도시 블록
+    // 4. 세부 도심 블록 (#E8EAED)
     ctx.fillStyle = '#E8EAED';
     const blockRows = [
-      { x: 30, y: 40, bw: 70, bh: 45 },
-      { x: 35, y: 110, bw: 80, bh: 50 },
-      { x: 340, y: 20, bw: 75, bh: 45 },
-      { x: 420, y: 20, bw: 50, bh: 35 },
-      { x: 30, y: 200, bw: 65, bh: 50 },
-      { x: 100, y: 290, bw: 90, bh: 45 },
-      { x: 210, y: 240, bw: 85, bh: 45 }
+      { x: 20, y: 30, bw: 65, bh: 50 },
+      { x: 95, y: 30, bw: 55, bh: 50 },
+      { x: 20, y: 100, bw: 70, bh: 45 },
+      { x: 100, y: 100, bw: 65, bh: 45 },
+      { x: 20, y: 190, bw: 45, bh: 65 },
+      { x: 180, y: 220, bw: 80, bh: 50 },
+      { x: 270, y: 190, bw: 75, bh: 45 },
+      { x: 330, y: 140, bw: 60, bh: 40 },
+      { x: 400, y: 90, bw: 70, bh: 60 },
+      { x: 410, y: 20, bw: 60, bh: 55 }
     ];
     blockRows.forEach(b => {
       ctx.beginPath();
-      ctx.roundRect(b.x * (w / 480), b.y * (h / 380), b.bw * (w / 480), b.bh * (h / 380), 4);
+      ctx.roundRect(b.x * (w / 480), b.y * (h / 380), b.bw * (w / 480), b.bh * (h / 380), 3);
       ctx.fill();
     });
 
     const sx = (w / 480) * mapZoomLevel;
     const sy = (h / 380) * mapZoomLevel;
 
-    // 5. 도로망 (구글 지도 스타일 흰색 도로 + 회색 테두리)
-    drawGoogleRoad(ctx, [{ x: 60, y: 260 }, { x: 120, y: 220 }, { x: 160, y: 195 }], 14, sx, sy);
-    drawGoogleRoad(ctx, [{ x: 80, y: 130 }, { x: 340, y: 140 }], 10, sx, sy);
-    drawGoogleRoad(ctx, [{ x: 435, y: 20 }, { x: 435, y: 150 }], 14, sx, sy);
+    // 5. 도로망 (구글 지도 스타일 화이트 도로 + 그레이 테두리)
+    // 보조 골목길 / 이면도로 (#FFFFFF, 얇은 너비)
+    drawGoogleRoad(ctx, [{ x: 20, y: 90 }, { x: 460, y: 90 }], 6, sx, sy);
+    drawGoogleRoad(ctx, [{ x: 20, y: 160 }, { x: 320, y: 160 }], 7, sx, sy);
+    drawGoogleRoad(ctx, [{ x: 170, y: 20 }, { x: 170, y: 350 }], 7, sx, sy);
+    drawGoogleRoad(ctx, [{ x: 350, y: 20 }, { x: 350, y: 350 }], 8, sx, sy);
+
+    // 주요 간선도로
+    drawGoogleRoad(ctx, [{ x: 60, y: 260 }, { x: 120, y: 220 }, { x: 160, y: 195 }], 12, sx, sy);
+    drawGoogleRoad(ctx, [{ x: 80, y: 130 }, { x: 380, y: 140 }], 12, sx, sy);
+    drawGoogleRoad(ctx, [{ x: 435, y: 10 }, { x: 435, y: 200 }], 16, sx, sy);
 
     // 부산 24번 노선 정류장 (대연역 ~ 서면역 구간)
     const busan24Stations = [
-      { id: 'ST-BS-DY', name: '대연역', x: 60, y: 280, ars: '07-070' },
-      { id: 'ST-BS-MG', name: '못골역(남구청)', x: 140, y: 250, ars: '07-078' },
-      { id: 'ST-BS-JG', name: '지게골역', x: 220, y: 215, ars: '07-085' },
-      { id: 'ST-BS-MH', name: '문현교차로', x: 300, y: 170, ars: '07-092' },
-      { id: 'ST-BS-BIFC', name: '국제금융센터(BIFC)', x: 370, y: 120, ars: '05-015' },
-      { id: 'ST-BS-SMN', name: '서면역', x: 435, y: 60, isDest: true, ars: '05-028' }
+      { id: 'ST-BS-DY', name: '대연역', x: 60, y: 280, ars: '07-070', sub: '부산2호선' },
+      { id: 'ST-BS-MG', name: '못골역', x: 140, y: 250, ars: '07-078', sub: '남구청' },
+      { id: 'ST-BS-JG', name: '지게골역', x: 220, y: 215, ars: '07-085', sub: '부산2호선' },
+      { id: 'ST-BS-MH', name: '문현교차로', x: 300, y: 170, ars: '07-092', sub: '금융로' },
+      { id: 'ST-BS-BIFC', name: '국제금융센터', x: 370, y: 120, ars: '05-015', sub: 'BIFC 63빌딩' },
+      { id: 'ST-BS-SMN', name: '서면역', x: 435, y: 60, isDest: true, ars: '05-028', sub: '1·2호선 환승' }
     ];
 
-    // 현재 사용자의 GPS 및 가장 가까운 역에 따라 isCurrent 동적 지정
+    // 현재 사용자의 GPS 및 가장 가까운 역 동적 지정
     const curStId = (state.currentStation && state.currentStation.station) ? state.currentStation.station.id : 'ST-BS-DY';
     let hasCur = false;
     busan24Stations.forEach(st => {
       st.isCurrent = (st.id === curStId);
       if (st.isCurrent) hasCur = true;
     });
-    if (!hasCur) busan24Stations[0].isCurrent = true; // 기본값 대연역
+    if (!hasCur) busan24Stations[0].isCurrent = true;
 
-    // 주요 도로 (수영로 → 문현 → 서면)
+    // 주 간선대로 (수영로 축)
     drawGoogleRoad(ctx, busan24Stations, 18, sx, sy);
 
-    // 도로명 표시
-    ctx.fillStyle = '#70757A';
-    ctx.font = '500 10px Roboto, sans-serif';
-    ctx.fillText('수영로 (부산2호선 축)', 120 * sx, 270 * sy);
-    ctx.fillText('중앙대로 (서면)', 375 * sx, 50 * sy);
-    ctx.fillText('황령대로', 200 * sx, 135 * sy);
+    // [REAL GOOGLE MAPS POI] 실제 주변 상가, 병원, 은행, 서점, 카페 랜드마크 마커
+    const googleMapPois = [
+      { name: '스타벅스 대연역점', x: 40, y: 250, cat: 'cafe', icon: '☕', color: '#10B981' },
+      { name: '부산남구청', x: 155, y: 285, cat: 'gov', icon: '🏛️', color: '#3B82F6' },
+      { name: '못골골목시장', x: 125, y: 210, cat: 'shop', icon: '🛒', color: '#F59E0B' },
+      { name: '문현이마트', x: 275, y: 235, cat: 'mart', icon: '🛍️', color: '#F59E0B' },
+      { name: '부산국제금융센터(63층)', x: 385, y: 155, cat: 'bldg', icon: '🏢', color: '#475569' },
+      { name: '블랙업커피 본점', x: 450, y: 100, cat: 'cafe', icon: '☕', color: '#10B981' },
+      { name: '교보문고 부산점', x: 460, y: 35, cat: 'book', icon: '📚', color: '#6366F1' },
+      { name: '서면지하도상가', x: 405, y: 30, cat: 'shop', icon: '🛍️', color: '#EC4899' },
+      { name: '롯데백화점 부산본점', x: 455, y: 65, cat: 'dept', icon: '🏬', color: '#EF4444' }
+    ];
 
-    // 6. 구글 지도 스타일 블루 노선 폴리라인 (24번 버스)
+    // POI 렌더링 (구글 지도 둥근 뱃지 + 상호명)
+    googleMapPois.forEach(poi => {
+      drawGooglePoiMarker(ctx, poi, sx, sy);
+    });
+
+    // 도로명 표시 (구글 맵 타이포그래피)
+    ctx.fillStyle = '#5F6368';
+    ctx.font = '500 10px Roboto, sans-serif';
+    ctx.fillText('수영로 (부산 2호선 축)', 95 * sx, 275 * sy);
+    ctx.fillText('중앙대로 (서면 중심가)', 350 * sx, 20 * sy);
+    ctx.fillText('황령대로 (터널 방면)', 180 * sx, 125 * sy);
+    ctx.fillText('전포대로 (카페거리)', 410 * sx, 150 * sy);
+
+    // 6. 구글 지도 스타일 블루 노선 폴리라인 (24번 버스 주행축)
     ctx.strokeStyle = '#1967D2';
-    ctx.lineWidth = 9;
+    ctx.lineWidth = 8;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.beginPath();
@@ -888,9 +917,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     ctx.stroke();
 
-    // 선명한 구글 교통 블루
     ctx.strokeStyle = '#4285F4';
-    ctx.lineWidth = 6;
+    ctx.lineWidth = 5;
     ctx.beginPath();
     busan24Stations.forEach((st, idx) => {
       const cx = st.x * sx;
@@ -910,14 +938,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     drawTimeOnRouteBadge(ctx, leg1MidX, leg1MidY, leg1TimeText, '5.2km · 원활', '#1A73E8', '#188038');
 
-    // 8. 정류장 마커 (구글 지도 교통 핀 스타일)
+    // 8. 정류장 마커 (구글 지도 버스정류장 & 지하철역 핀 스타일)
     busan24Stations.forEach(st => {
       const cx = st.x * sx;
       const cy = st.y * sy;
 
       if (st.isCurrent) {
         // [내 GPS 실시간 위치]: 블루 펄스 비콘
-        ctx.fillStyle = 'rgba(37, 99, 235, 0.22)';
+        ctx.fillStyle = 'rgba(37, 99, 235, 0.25)';
         ctx.beginPath();
         ctx.arc(cx, cy, 18, 0, Math.PI * 2);
         ctx.fill();
@@ -930,30 +958,35 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.lineWidth = 2.5;
         ctx.stroke();
 
-        drawMapLabel(ctx, st.name + ' (내 GPS 위치)', cx, cy - 14, '#2563EB', true);
+        drawMapLabel(ctx, `📍 ${st.name} (내 위치)`, cx, cy - 14, '#2563EB', true);
 
       } else if (st.isDest) {
-        // [목적지]: 레드 핀
+        // [목적지]: 구글 레드 핀
         drawGoogleRedPin(ctx, cx, cy);
-        drawMapLabel(ctx, st.name + ' (목적지)', cx, cy - 24, '#DC2626', true);
+        drawMapLabel(ctx, `🚩 ${st.name} (약속 목적지)`, cx, cy - 24, '#DC2626', true);
 
       } else {
-        // 일반 정류소
+        // 구글 대중교통 역/정류소 심볼 (원형 + 버스 아이콘 느낌)
         ctx.fillStyle = '#FFFFFF';
         ctx.beginPath();
-        ctx.arc(cx, cy, 5.5, 0, Math.PI * 2);
+        ctx.arc(cx, cy, 6, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = '#2563EB';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2.5;
         ctx.stroke();
 
-        drawMapLabel(ctx, st.name, cx + 9, cy + 3, '#334155', false);
+        // 중앙 파란 점
+        ctx.fillStyle = '#2563EB';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        drawMapLabel(ctx, `🚏 ${st.name}`, cx + 10, cy + 4, '#1E293B', false);
       }
     });
 
-    // 9. [실시간 약속] 친구 실시간 위치 표시 (친구가 약속에 참여중인 경우)
+    // 9. [실시간 약속] 친구 실시간 위치 표시
     if (state.activeAppointment && state.activeAppointment.friendName) {
-      // 친구 위치를 노선상 지게골역~문현교차로 사이로 현실적 매핑
       const fx = 250 * sx;
       const fy = 195 * sy;
 
@@ -973,10 +1006,9 @@ document.addEventListener('DOMContentLoaded', () => {
       drawMapLabel(ctx, `🤝 ${state.activeAppointment.friendName} (이동 중 · 8분 남음)`, fx, fy - 14, '#EA580C', true);
     }
 
-    // 10. [현실적인 버스 주행 물리] 실제 도착 잔여 시간 연동 위치 계산
-    // 24번 버스 실제 남은 시간(초)에 따라 정류장 사이에서 정확한 물리 보간
-    let bus1Sec = 180; // 기본 3분 전
-    let bus2Sec = 480; // 기본 8분 전
+    // 10. [현실적 버스 주행] 24번 버스
+    let bus1Sec = 180;
+    let bus2Sec = 480;
     if (state.cachedMatches && state.cachedMatches.length > 0) {
       const match = state.cachedMatches[0];
       if (match.arrivalInfo) {
@@ -984,17 +1016,50 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // 현실적 주행: 60초당 약 0.15 구간 진행
     const curIdx = busan24Stations.findIndex(st => st.isCurrent);
     const targetIdx = curIdx >= 0 ? curIdx : 0;
 
-    // 버스 1: 내 정류장으로 다가오는 24번 버스
     const bus1Prog = Math.max(0, targetIdx - (bus1Sec / 120.0));
     const bus2Prog = Math.max(0, targetIdx - (bus2Sec / 120.0));
 
     drawGoogleLiveBusByProgress(ctx, busan24Stations, bus1Prog, '24', '#2563EB', sx, sy);
     drawGoogleLiveBusByProgress(ctx, busan24Stations, bus2Prog, '24', '#10B981', sx, sy);
 
+    ctx.restore();
+  }
+
+  // 헬퍼: 구글 지도 상가/상점/랜드마크 POI 렌더러
+  function drawGooglePoiMarker(ctx, poi, sx, sy) {
+    const px = poi.x * sx;
+    const py = poi.y * sy;
+
+    ctx.save();
+    // POI 아이콘 원형 카드
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(px, py, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = poi.color;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // 이모지 심볼
+    ctx.font = '8px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(poi.icon, px, py + 0.5);
+
+    // 상가명 텍스트 (구글 스타일 서체 & 흰색 외곽선)
+    ctx.font = '500 8.5px -apple-system, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.lineWidth = 3;
+    ctx.strokeText(poi.name, px + 9, py);
+
+    ctx.fillStyle = '#475569';
+    ctx.fillText(poi.name, px + 9, py);
     ctx.restore();
   }
 
