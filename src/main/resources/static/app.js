@@ -46,8 +46,19 @@ document.addEventListener('DOMContentLoaded', () => {
     favoritesGrid: document.getElementById('favoritesGrid'),
     favCountBadge: document.getElementById('favCountBadge'),
     liveClock: document.getElementById('liveClock'),
-    mapContainer: document.getElementById('realLeafletMap')
+    mapContainer: document.getElementById('realLeafletMap'),
+    transitBottomSheet: document.getElementById('transitBottomSheet'),
+    sheetDragHandle: document.getElementById('sheetDragHandle'),
+    btnToggleSheet: document.getElementById('btnToggleSheet'),
+    miniSummaryText: document.getElementById('miniSummaryText'),
+    btnShareAppointmentLink: document.getElementById('btnShareAppointmentLink'),
+    btnCenterUserGps: document.getElementById('btnCenterUserGps'),
+    appToast: document.getElementById('appToast')
   };
+
+  // Bottom Sheet State ('collapsed' | 'half' | 'expanded')
+  let currentSheetState = 'half';
+  let toastTimer = null;
 
   // Initialize
   init();
@@ -61,6 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
     await fetchAppointments();
     await fetchRecommendations();
     await refreshAllData();
+    checkUrlAppointmentParam();
 
     // 1-second UI countdown and periodic fetch
     if (state.timerInterval) clearInterval(state.timerInterval);
@@ -153,9 +165,159 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
+    // Mobile Bottom Sheet Controls & Gestures
+    setupBottomSheet();
+
+    // Share Appointment Link
+    setupShareLink();
+
+    // Map Center GPS Floating Button
+    setupMapControls();
+
     window.addEventListener('resize', () => {
       if (leafletMap) leafletMap.invalidateSize();
     });
+  }
+
+  // Toast Notification System
+  function showToast(message, duration = 3000) {
+    if (!el.appToast) return;
+    el.appToast.innerHTML = `<span>⚡</span> <span>${message}</span>`;
+    el.appToast.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      el.appToast.classList.remove('show');
+    }, duration);
+  }
+
+  // Bottom Sheet Controller
+  function setBottomSheetState(newState) {
+    if (!el.transitBottomSheet) return;
+    el.transitBottomSheet.classList.remove('sheet-state-collapsed', 'sheet-state-half', 'sheet-state-expanded');
+    el.transitBottomSheet.classList.add(`sheet-state-${newState}`);
+    currentSheetState = newState;
+
+    if (el.btnToggleSheet) {
+      const icon = el.btnToggleSheet.querySelector('.toggle-icon');
+      if (icon) {
+        if (newState === 'expanded') {
+          icon.textContent = '▼';
+        } else if (newState === 'collapsed') {
+          icon.textContent = '▲';
+        } else {
+          icon.textContent = '▲';
+        }
+      }
+    }
+
+    setTimeout(() => {
+      if (leafletMap) leafletMap.invalidateSize();
+    }, 320);
+  }
+
+  function cycleBottomSheetState() {
+    if (currentSheetState === 'collapsed') {
+      setBottomSheetState('half');
+    } else if (currentSheetState === 'half') {
+      setBottomSheetState('expanded');
+    } else {
+      setBottomSheetState('collapsed');
+    }
+  }
+
+  function setupBottomSheet() {
+    if (!el.transitBottomSheet) return;
+
+    // Toggle button click
+    if (el.btnToggleSheet) {
+      el.btnToggleSheet.addEventListener('click', (e) => {
+        e.stopPropagation();
+        cycleBottomSheetState();
+      });
+    }
+
+    // Drag handle area click (except toggle button)
+    if (el.sheetDragHandle) {
+      el.sheetDragHandle.addEventListener('click', (e) => {
+        if (e.target.closest('#btnToggleSheet')) return;
+        cycleBottomSheetState();
+      });
+
+      // Touch swipe gestures
+      let touchStartY = 0;
+      el.sheetDragHandle.addEventListener('touchstart', (e) => {
+        touchStartY = e.touches[0].clientY;
+      }, { passive: true });
+
+      el.sheetDragHandle.addEventListener('touchend', (e) => {
+        const touchEndY = e.changedTouches[0].clientY;
+        const diffY = touchEndY - touchStartY;
+        // Swiped Up
+        if (diffY < -35) {
+          if (currentSheetState === 'collapsed') setBottomSheetState('half');
+          else if (currentSheetState === 'half') setBottomSheetState('expanded');
+        }
+        // Swiped Down
+        else if (diffY > 35) {
+          if (currentSheetState === 'expanded') setBottomSheetState('half');
+          else if (currentSheetState === 'half') setBottomSheetState('collapsed');
+        }
+      }, { passive: true });
+    }
+  }
+
+  // Share Appointment Link
+  function setupShareLink() {
+    if (!el.btnShareAppointmentLink) return;
+    el.btnShareAppointmentLink.addEventListener('click', async () => {
+      const activeApp = state.activeAppointment || (state.appointments && state.appointments[0]);
+      const meetId = activeApp ? activeApp.id : 'MEET-2490';
+      const shareUrl = `${window.location.origin}${window.location.pathname}?meetId=${meetId}`;
+
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(shareUrl);
+        } else {
+          const tempInput = document.createElement('input');
+          tempInput.value = shareUrl;
+          document.body.appendChild(tempInput);
+          tempInput.select();
+          document.execCommand('copy');
+          document.body.removeChild(tempInput);
+        }
+        showToast('약속 공유 링크가 복사되었습니다! 카카오톡이나 메시지로 친구에게 전달해보세요.');
+      } catch (err) {
+        showToast('공유 링크: ' + shareUrl);
+      }
+    });
+  }
+
+  // Floating Map Center GPS Button
+  function setupMapControls() {
+    if (el.btnCenterUserGps) {
+      el.btnCenterUserGps.addEventListener('click', () => {
+        if (leafletMap) {
+          leafletMap.setView([state.currentLat, state.currentLng], 15, { animate: true });
+          showToast('내 현재 위치로 지도 중심을 이동했습니다.');
+        }
+      });
+    }
+  }
+
+  // Check URL Appointment Param
+  function checkUrlAppointmentParam() {
+    const params = new URLSearchParams(window.location.search);
+    const meetId = params.get('meetId');
+    if (meetId) {
+      state.activeTab = 'appointments';
+      el.tabs.forEach(t => {
+        if (t.dataset.tab === 'appointments') t.classList.add('active');
+        else t.classList.remove('active');
+      });
+      renderCurrentTab();
+      setBottomSheetState('half');
+      showToast(`공유받은 약속(${meetId}) 화면으로 자동 연결되었습니다.`);
+    }
   }
 
   // Device GPS
@@ -344,6 +506,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (matches.length === 0) {
       el.fastestCard.style.display = 'none';
+      if (el.miniSummaryText) {
+        el.miniSummaryText.textContent = '목적지까지 직통 버스 없음';
+      }
       el.busListContainer.innerHTML = `
         <div class="empty-state">
           <span class="empty-state-icon">🔍</span>
@@ -361,6 +526,10 @@ document.addEventListener('DOMContentLoaded', () => {
     el.fastestCard.style.display = 'block';
     el.fastestBusTitle.textContent = `★ 지금 ${fastest.busNumber}번 버스를 타시면 가장 빠릅니다!`;
     el.fastestBusDesc.textContent = `${fastest.boardingStation.name}에서 탑승 시 ${fastest.stopsToDestination}개 정류장 후 [${fastest.destinationStation.name}] 도착 (총 약 ${fastest.totalEstimatedMinutes}분 소요)`;
+
+    if (el.miniSummaryText) {
+      el.miniSummaryText.textContent = `${fastest.boardingStation.name} ➔ ${fastest.destinationStation.name} (${fastest.busNumber}번 약 ${fastest.totalEstimatedMinutes}분)`;
+    }
 
     el.busListContainer.innerHTML = matches.map(m => createMatchCardHtml(m)).join('');
     bindCardEvents();
@@ -791,8 +960,9 @@ document.addEventListener('DOMContentLoaded', () => {
     leafletMap = L.map(el.mapContainer, {
       center: [35.1465, 129.0740],
       zoom: 14.5,
-      zoomControl: true
+      zoomControl: false
     });
+    L.control.zoom({ position: 'bottomright' }).addTo(leafletMap);
 
     // 기본 레이어: Google Maps 실제 도로/건물 지도 적용!
     currentTileLayer = tileLayers.google.addTo(leafletMap);

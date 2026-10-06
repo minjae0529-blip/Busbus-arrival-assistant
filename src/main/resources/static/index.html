@@ -13,8 +13,13 @@
 </head>
 <body>
 
-  <!-- TOP HEADER -->
-  <header class="app-header">
+<div class="map-app-viewport">
+
+  <!-- 1. FULLSCREEN LEAFLET MAP -->
+  <div id="realLeafletMap" class="fullscreen-map"></div>
+
+  <!-- 2. FLOATING TOP HEADER -->
+  <header class="app-header floating-header">
     <div class="header-container">
       <a href="/" class="brand-wrapper">
         <div class="brand-icon-box">
@@ -26,13 +31,13 @@
         <div class="brand-text-col">
           <div class="brand-name">
             스마트 버스 라우트
-            <span class="brand-badge">JDK 21 Live</span>
+            <span class="brand-badge">실시간 실감지도</span>
           </div>
-          <span class="brand-tagline">실시간 위치기반 버스 도착 & 최적 목적지 길안내</span>
+          <span class="brand-tagline">위치기반 버스 & 약속 메이트</span>
         </div>
       </a>
 
-      <!-- HEADER ACTIONS: GPS & PRESET -->
+      <!-- HEADER ACTIONS: GPS & PRESET & SHARE -->
       <div class="header-actions">
         <div class="gps-status-pill">
           <div class="status-dot"></div>
@@ -51,159 +56,168 @@
           <option value="35.13550,129.09200">시뮬레이션: 대연역 (남구)</option>
           <option value="35.15780,129.05920">시뮬레이션: 서면역 (부산진구)</option>
         </select>
+
+        <!-- KAKAO / WEB SHARE APPOINTMENT BUTTON -->
+        <button class="btn-share-appointment" id="btnShareAppointmentLink" title="친구에게 내 실시간 버스 및 약속 위치 공유">
+          <span>🔗</span> 약속 공유 링크 복사
+        </button>
       </div>
     </div>
   </header>
 
-  <!-- MAIN CONTAINER -->
-  <main class="main-wrapper">
+  <!-- 3. FLOATING MAP LAYER CONTROLS (우측 상단 플로팅) -->
+  <div class="floating-map-tools">
+    <div class="tile-switch-capsule">
+      <button id="btnTileGoogle" class="tile-toggle-btn active" title="구글 일반 도로/건물 지도">일반지도</button>
+      <button id="btnTileHybrid" class="tile-toggle-btn" title="구글 위성 항공사진">위성</button>
+      <button id="btnTileOsm" class="tile-toggle-btn" title="상세 보행 골목길">골목길</button>
+    </div>
+    <button class="btn-map-circle" id="btnCenterUserGps" title="내 위치로 지도 중심 이동">
+      <span>🎯</span>
+    </button>
+  </div>
 
-    <!-- HERO DESTINATION CARD -->
-    <section class="hero-destination-card">
-      <div class="route-flow-box">
-        <div class="flow-node">
-          <span class="flow-node-badge">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
-            현재 내 위치 (수영구·남구)
-          </span>
-          <span class="flow-node-title" id="bannerCurrentStationName">경성대·부경대역 (수영로)</span>
+  <!-- 4. INTERACTIVE BOTTOM SHEET / DESKTOP SIDE PANEL -->
+  <aside class="transit-bottom-sheet sheet-state-half" id="transitBottomSheet">
+
+    <!-- DRAG HANDLE & MINI SUMMARY HEADER -->
+    <div class="sheet-drag-handle-area" id="sheetDragHandle" title="끌어올리거나 클릭하여 패널 열기/닫기">
+      <div class="drag-bar"></div>
+      <div class="sheet-mini-summary">
+        <div class="mini-summary-content">
+          <span class="mini-badge">🚌 24번 직통</span>
+          <span class="mini-route-text" id="miniSummaryText">대연역 ➔ 서면역 직통 (14분 소요)</span>
         </div>
-
-        <div class="flow-connector">
-          <svg class="flow-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-            <polyline points="12 5 19 12 12 19"></polyline>
-          </svg>
-        </div>
-
-        <div class="flow-node">
-          <span class="flow-node-badge">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="#38BDF8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            설정된 목적지
-          </span>
-          <span class="flow-node-title" id="bannerDestinationStationName">서면역.서면지하상가</span>
+        <div class="sheet-controls-group">
+          <span class="sheet-live-clock" id="liveClock">실시간 동기화</span>
+          <button class="sheet-toggle-btn" id="btnToggleSheet" title="패널 크기 전환">
+            <span class="toggle-icon">▲</span>
+          </button>
         </div>
       </div>
+    </div>
 
-      <div class="hero-actions-box">
-        <div class="hero-count-tag" id="bannerDirectBusesCount">
-          <span>🚌</span> 24번 직통 버스 탐색 중...
-        </div>
-        <button class="btn-change-destination" id="btnOpenDestModal">목적지 변경</button>
-      </div>
-    </section>
+    <!-- SHEET SCROLLABLE CONTENT BODY -->
+    <div class="sheet-scroll-body">
 
-    <!-- 2-COLUMN MAIN CONTENT GRID -->
-    <div class="content-grid">
-
-      <!-- LEFT COLUMN -->
-      <div class="left-column">
-
-        <!-- TABS -->
-        <nav class="custom-tab-bar">
-          <button class="tab-btn active" data-tab="destination">
-            <span>🎯</span> 목적지 직통 버스
-          </button>
-          <button class="tab-btn" data-tab="all-arrivals">
-            <span>🚌</span> 실시간 전체 도착
-          </button>
-          <button class="tab-btn" data-tab="favorites">
-            <span>⭐</span> 자주 타는 버스
-          </button>
-          <button class="tab-btn" data-tab="appointments">
-            <span>🤝</span> 실시간 약속 위치
-          </button>
-          <button class="tab-btn" data-tab="recommendations">
-            <span>✨</span> 조기 도착 추천
-          </button>
-        </nav>
-
-        <!-- CURRENT STATION SUMMARY CARD -->
-        <div class="station-overview-card">
-          <div class="st-overview-header">
-            <div>
-              <div class="st-name-row">
-                <h2 class="st-main-name" id="currentStationTitle">경성대·부경대역</h2>
-                <span class="st-ars-num" id="currentStationArs">ARS 07-062</span>
-              </div>
-              <div class="st-subway-row" id="currentStationSubwayTags">
-                <span class="subway-chip subway-2호선">부산2호선</span>
-              </div>
-            </div>
-            <span class="st-walk-badge" id="currentStationDistance">도보 1분 (35m)</span>
-          </div>
-        </div>
-
-        <!-- FASTEST RECOMMENDATION BANNER -->
-        <div class="fastest-recommend-card" id="fastestCard" style="display: none;">
-          <div class="fastest-tag">★ 최단시간 추천</div>
-          <div class="fastest-main-text" id="fastestBusTitle">지금 24번 버스를 타시면 가장 빠릅니다!</div>
-          <div class="fastest-sub-text" id="fastestBusDesc">
-            경성대·부경대역에서 탑승 시 6개 정류장 후 [서면역] 도착 (총 약 14분 소요)
-          </div>
-        </div>
-
-        <!-- BUS CARDS LIST -->
-        <div class="bus-cards-list" id="busListContainer">
-          <div class="empty-state">
-            <span class="empty-state-icon">⏳</span>
-            실시간 부산 24번 버스 정보를 불러오는 중입니다...
-          </div>
-        </div>
-
-      </div>
-
-      <!-- RIGHT COLUMN: INTERACTIVE MAP & FAVORITES -->
-      <div class="right-column">
-
-        <!-- REAL INTERACTIVE MAP (GOOGLE MAPS REAL TILES) -->
-        <div class="interactive-map-card">
-          <div class="map-card-head">
-            <div class="map-card-heading">
-              <span>🗺️</span> 실시간 노선도 및 주행 현황
-              <div style="display:inline-flex; gap:4px; margin-left:6px;">
-                <button id="btnTileGoogle" class="btn-pill" style="font-size:10px; padding:2px 8px; background:#2563EB; color:white; border-color:#2563EB;">구글 일반지도</button>
-                <button id="btnTileHybrid" class="btn-pill" style="font-size:10px; padding:2px 8px;">구글 위성지도</button>
-                <button id="btnTileOsm" class="btn-pill" style="font-size:10px; padding:2px 8px;">상세 골목지도</button>
-              </div>
-            </div>
-            <span style="font-size: 11px; color: var(--text-hint);" id="liveClock">실시간 동기화</span>
-          </div>
-
-          <div class="canvas-wrapper" style="position: relative; height: 500px;">
-            <div id="realLeafletMap" style="width: 100%; height: 100%; z-index: 1;"></div>
-          </div>
-        </div>
-
-        <!-- FAVORITES MANAGEMENT CARD -->
-        <div class="favorites-box-card">
-          <div class="fav-header-row">
-            <div class="fav-heading">
-              <span>⭐</span> 자주 타는 버스 / 역 관리
-            </div>
-            <span style="font-size: 12px; color: var(--brand-primary); font-weight: 700;" id="favCountBadge">
-              총 3개 등록됨
+      <!-- HERO DESTINATION CARD -->
+      <section class="hero-destination-card">
+        <div class="route-flow-box">
+          <div class="flow-node">
+            <span class="flow-node-badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+              현재 내 위치 (수영구·남구)
             </span>
+            <span class="flow-node-title" id="bannerCurrentStationName">경성대·부경대역 (수영로)</span>
           </div>
 
-          <!-- QUICK ADD FORM -->
-          <div class="fav-add-bar">
-            <input type="text" id="inputFavBusNumber" class="clean-input" placeholder="자주 타는 버스 번호 (예: 24)" style="flex: 1;">
-            <input type="text" id="inputFavMemo" class="clean-input" placeholder="메모 (예: 수영로 출퇴근용)" style="width: 140px;">
-            <button class="btn-primary-action" id="btnAddFavorite">등록</button>
+          <div class="flow-connector">
+            <svg class="flow-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
           </div>
 
-          <!-- FAVORITES CHIPS GRID -->
-          <div class="fav-chips-container" id="favoritesGrid">
-            <!-- Rendered via JavaScript -->
+          <div class="flow-node">
+            <span class="flow-node-badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="#38BDF8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              설정된 목적지
+            </span>
+            <span class="flow-node-title" id="bannerDestinationStationName">서면역.서면지하상가</span>
           </div>
         </div>
 
+        <div class="hero-actions-box">
+          <div class="hero-count-tag" id="bannerDirectBusesCount">
+            <span>🚌</span> 24번 직통 버스 탐색 중...
+          </div>
+          <button class="btn-change-destination" id="btnOpenDestModal">목적지 변경</button>
+        </div>
+      </section>
+
+      <!-- TABS -->
+      <nav class="custom-tab-bar">
+        <button class="tab-btn active" data-tab="destination">
+          <span>🎯</span> 직통 버스
+        </button>
+        <button class="tab-btn" data-tab="all-arrivals">
+          <span>🚌</span> 전체 도착
+        </button>
+        <button class="tab-btn" data-tab="favorites">
+          <span>⭐</span> 자주 타는 역
+        </button>
+        <button class="tab-btn" data-tab="appointments">
+          <span>🤝</span> 실시간 약속
+        </button>
+        <button class="tab-btn" data-tab="recommendations">
+          <span>✨</span> 조기 도착 추천
+        </button>
+      </nav>
+
+      <!-- CURRENT STATION SUMMARY CARD -->
+      <div class="station-overview-card">
+        <div class="st-overview-header">
+          <div>
+            <div class="st-name-row">
+              <h2 class="st-main-name" id="currentStationTitle">경성대·부경대역</h2>
+              <span class="st-ars-num" id="currentStationArs">ARS 07-062</span>
+            </div>
+            <div class="st-subway-row" id="currentStationSubwayTags">
+              <span class="subway-chip subway-2호선">부산2호선</span>
+            </div>
+          </div>
+          <span class="st-walk-badge" id="currentStationDistance">도보 1분 (35m)</span>
+        </div>
+      </div>
+
+      <!-- FASTEST RECOMMENDATION BANNER -->
+      <div class="fastest-recommend-card" id="fastestCard" style="display: none;">
+        <div class="fastest-tag">★ 최단시간 추천</div>
+        <div class="fastest-main-text" id="fastestBusTitle">지금 24번 버스를 타시면 가장 빠릅니다!</div>
+        <div class="fastest-sub-text" id="fastestBusDesc">
+          경성대·부경대역에서 탑승 시 6개 정류장 후 [서면역] 도착 (총 약 14분 소요)
+        </div>
+      </div>
+
+      <!-- BUS CARDS LIST -->
+      <div class="bus-cards-list" id="busListContainer">
+        <div class="empty-state">
+          <span class="empty-state-icon">⏳</span>
+          실시간 부산 24번 버스 정보를 불러오는 중입니다...
+        </div>
+      </div>
+
+      <!-- FAVORITES MANAGEMENT CARD -->
+      <div class="favorites-box-card">
+        <div class="fav-header-row">
+          <div class="fav-heading">
+            <span>⭐</span> 자주 타는 버스 / 역 관리
+          </div>
+          <span style="font-size: 12px; color: var(--brand-primary); font-weight: 700;" id="favCountBadge">
+            총 3개 등록됨
+          </span>
+        </div>
+
+        <!-- QUICK ADD FORM -->
+        <div class="fav-add-bar">
+          <input type="text" id="inputFavBusNumber" class="clean-input" placeholder="자주 타는 버스 번호 (예: 24)" style="flex: 1;">
+          <input type="text" id="inputFavMemo" class="clean-input" placeholder="메모 (예: 수영로 출퇴근용)" style="width: 140px;">
+          <button class="btn-primary-action" id="btnAddFavorite">등록</button>
+        </div>
+
+        <!-- FAVORITES CHIPS GRID -->
+        <div class="fav-chips-container" id="favoritesGrid">
+          <!-- Rendered via JavaScript -->
+        </div>
       </div>
 
     </div>
+  </aside>
 
-  </main>
+</div>
+
+<!-- TOAST NOTIFICATION MESSAGE -->
+<div class="app-toast-container" id="appToast"></div>
 
   <!-- MODAL: DESTINATION SELECT -->
   <div class="dialog-overlay" id="destModal">
