@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>스마트 버스 라우트 | 실시간 위치기반 버스 도착 및 목적지 안내</title>
+  <title>스마트 버스 라우트 | 실시간 위치기반 대중교통 길찾기 & 약속 메이트</title>
   <link rel="stylesheet" href="/app.css">
   <!-- LEAFLET REAL MAP CSS & JS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
@@ -21,32 +21,43 @@
   <!-- 2. FLOATING TOP HEADER -->
   <header class="app-header floating-header">
     <div class="header-container">
-      <a href="/" class="brand-wrapper">
-        <div class="brand-icon-box">
-          <!-- SLEEK SLIM TRANSIT VECTOR ICON -->
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="4" y="3" width="16" height="15" rx="3"></rect>
-            <path d="M4 11h16"></path>
-            <path d="M8 6h2"></path>
-            <path d="M14 6h2"></path>
-            <circle cx="8" cy="15" r="1.5" fill="currentColor"></circle>
-            <circle cx="16" cy="15" r="1.5" fill="currentColor"></circle>
-            <path d="M6 18v2.5"></path>
-            <path d="M18 18v2.5"></path>
+      <div class="header-brand-group">
+        <!-- 햄버거 메뉴 버튼 -->
+        <button class="btn-menu-hamburger" id="btnOpenMenuDrawer" title="전체 메뉴 열기">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
           </svg>
-        </div>
-        <div class="brand-text-col">
-          <div class="brand-name">
-            스마트 버스 라우트
-            <span class="brand-badge">실시간 실감지도</span>
-          </div>
-          <span class="brand-tagline">위치기반 버스 & 약속 메이트</span>
-        </div>
-      </a>
+        </button>
 
-      <!-- HEADER ACTIONS: GPS & PRESET & SHARE (PROPERLY ORDERED & SAFE PADDING) -->
+        <a href="/" class="brand-wrapper">
+          <div class="brand-icon-box">
+            <!-- SLEEK SLIM TRANSIT VECTOR ICON -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="3" width="16" height="15" rx="3"></rect>
+              <path d="M4 11h16"></path>
+              <path d="M8 6h2"></path>
+              <path d="M14 6h2"></path>
+              <circle cx="8" cy="15" r="1.5" fill="currentColor"></circle>
+              <circle cx="16" cy="15" r="1.5" fill="currentColor"></circle>
+              <path d="M6 18v2.5"></path>
+              <path d="M18 18v2.5"></path>
+            </svg>
+          </div>
+          <div class="brand-text-col">
+            <div class="brand-name">
+              스마트 버스 라우트
+              <span class="brand-badge">실시간 실감지도</span>
+            </div>
+            <span class="brand-tagline">위치기반 버스·지하철 & 약속 메이트</span>
+          </div>
+        </a>
+      </div>
+
+      <!-- HEADER ACTIONS: GPS & PRESET & SHARE -->
       <div class="header-actions">
-        <!-- 1. APPOINTMENT SHARE BUTTON (PROMINENT, NO CLIPPING) -->
+        <!-- APPOINTMENT SHARE BUTTON -->
         <button class="btn-share-appointment" id="btnShareAppointmentLink" title="친구에게 내 실시간 버스 및 약속 위치 공유">
           <svg class="btn-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
@@ -55,7 +66,16 @@
           <span>약속 공유</span>
         </button>
 
-        <!-- 2. REFRESH GPS -->
+        <!-- DELAY NOTIFY BUTTON -->
+        <button class="btn-delay-quick" id="btnQuickDelay" title="약속 지연 사유 전송">
+          <svg class="btn-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <span>지연 알림</span>
+        </button>
+
+        <!-- REFRESH GPS -->
         <button class="btn-pill" id="btnRefreshGps" title="내 위치 GPS 다시 가져오기">
           <svg class="btn-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7z"></path>
@@ -64,17 +84,17 @@
           <span>위치 갱신</span>
         </button>
 
-        <!-- 3. PRESET SIMULATION SELECTOR -->
+        <!-- PRESET SIMULATION SELECTOR -->
         <select class="select-preset" id="locationPresetSelect" title="위치 시뮬레이션">
           <option value="35.13750,129.10050">경성대·부경대역 (수영로)</option>
+          <option value="35.13550,129.09200">대연역 (남구)</option>
           <option value="35.14150,129.10850">남천역 (남천동)</option>
           <option value="35.15250,129.11550">광안역 (광안동)</option>
           <option value="35.16100,129.11650">수영역 (수영동)</option>
-          <option value="35.13550,129.09200">대연역 (남구)</option>
           <option value="35.15780,129.05920">서면역 (부산진구)</option>
         </select>
 
-        <!-- 4. GPS STATUS INDICATOR -->
+        <!-- GPS STATUS INDICATOR -->
         <div class="gps-status-pill">
           <div class="status-dot"></div>
           <span class="gps-loc-text" id="gpsStatusText">GPS 연결 중...</span>
@@ -110,7 +130,7 @@
       <div class="drag-bar"></div>
       <div class="sheet-mini-summary">
         <div class="mini-summary-content">
-          <span class="mini-badge">24번 직통</span>
+          <span class="mini-badge" id="miniModeBadge">대중교통 추천</span>
           <span class="mini-route-text" id="miniSummaryText">대연역 ➔ 서면역 직통 (14분 소요)</span>
         </div>
         <div class="sheet-controls-group">
@@ -125,46 +145,73 @@
     <!-- SHEET SCROLLABLE CONTENT BODY -->
     <div class="sheet-scroll-body">
 
-      <!-- HERO DESTINATION CARD -->
-      <section class="hero-destination-card">
-        <div class="route-flow-box">
-          <div class="flow-node">
-            <span class="flow-node-badge">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
-              현재 내 위치 (수영구·남구)
-            </span>
-            <span class="flow-node-title" id="bannerCurrentStationName">경성대·부경대역 (수영로)</span>
+      <!-- T-MAP STYLE TRANSIT NAVIGATION SEARCH BAR -->
+      <section class="nav-route-card">
+        <div class="nav-inputs-wrapper">
+          <div class="nav-dots-col">
+            <div class="dot-origin"></div>
+            <div class="dots-line"></div>
+            <div class="dot-dest"></div>
           </div>
-
-          <div class="flow-connector">
-            <svg class="flow-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-              <polyline points="12 5 19 12 12 19"></polyline>
+          <div class="nav-fields-col">
+            <div class="nav-input-row">
+              <span class="nav-label">출발</span>
+              <input type="text" id="inputNavOrigin" class="nav-text-input" value="대연역 (부산고려병원)" placeholder="탑승지/출발역 입력">
+            </div>
+            <div class="nav-divider-h"></div>
+            <div class="nav-input-row">
+              <span class="nav-label">도착</span>
+              <input type="text" id="inputNavDest" class="nav-text-input" value="서면역 (서면지하상가)" placeholder="목적지/도착역 입력">
+            </div>
+          </div>
+          <button class="btn-swap-points" id="btnSwapNavPoints" title="출발지 ⇄ 도착지 맞바꾸기">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+              <polyline points="17 14 12 9 7 14"></polyline>
+              <line x1="12" y1="9" x2="12" y2="21"></line>
             </svg>
-          </div>
-
-          <div class="flow-node">
-            <span class="flow-node-badge">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="#38BDF8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              설정된 목적지
-            </span>
-            <span class="flow-node-title" id="bannerDestinationStationName">서면역.서면지하상가</span>
-          </div>
+          </button>
         </div>
 
-        <div class="hero-actions-box">
-          <div class="hero-count-tag" id="bannerDirectBusesCount">
-            24번 직통 버스 탐색 중...
+        <!-- T-MAP STYLE RECOMMENDATION OPTIONS (BUS VS SUBWAY) -->
+        <div class="nav-mode-selector">
+          <!-- OPTION 1: BUS -->
+          <div class="nav-option-card active" id="btnSelectBusMode">
+            <div class="nav-option-header">
+              <span class="mode-badge badge-bus">🚌 버스 추천</span>
+              <span class="mode-time">약 14분</span>
+            </div>
+            <div class="mode-route-name"><strong>부산 24번</strong> 직통</div>
+            <div class="mode-route-sub">환승 0회 · 6개 정류장 · 배차 7분</div>
           </div>
-          <button class="btn-change-destination" id="btnOpenDestModal">목적지 변경</button>
+
+          <!-- OPTION 2: SUBWAY -->
+          <div class="nav-option-card" id="btnSelectSubwayMode">
+            <div class="nav-option-header">
+              <span class="mode-badge badge-subway">🚇 지하철 추천</span>
+              <span class="mode-time">약 11분</span>
+            </div>
+            <div class="mode-route-name"><strong>부산 2호선</strong> 정시도착</div>
+            <div class="mode-route-sub">환승 0회 · 6개 역 경유 · 배차 5분</div>
+          </div>
         </div>
       </section>
 
-      <!-- TABS (SLEEK SLIM SVG ICONS, NO CLIPPING) -->
+      <!-- ACTIVE DELAY BANNER (지연 알림 발생 시 노출) -->
+      <div class="delay-alert-banner" id="delayAlertBanner" style="display:none;">
+        <div class="delay-alert-icon">⏳</div>
+        <div class="delay-alert-content">
+          <div class="delay-alert-title" id="delayAlertTitle">약속 지연 알림이 도착했습니다</div>
+          <div class="delay-alert-desc" id="delayAlertDesc">지연 사유 및 연장된 시간 안내</div>
+        </div>
+      </div>
+
+      <!-- TABS (SLEEK SLIM SVG ICONS, 18~20px) -->
       <nav class="custom-tab-bar">
         <button class="tab-btn active" data-tab="destination">
           <svg class="tab-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
-          <span>직통 버스</span>
+          <span>직통 교통</span>
         </button>
         <button class="tab-btn" data-tab="all-arrivals">
           <svg class="tab-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="15" rx="3"/><path d="M4 11h16"/><path d="M6 18v2"/><path d="M18 18v2"/><circle cx="8" cy="15" r="1.5"/><circle cx="16" cy="15" r="1.5"/></svg>
@@ -184,19 +231,19 @@
         </button>
       </nav>
 
-      <!-- CURRENT STATION SUMMARY CARD -->
+      <!-- CURRENT STATION / SUBWAY OVERVIEW CARD -->
       <div class="station-overview-card">
         <div class="st-overview-header">
           <div>
             <div class="st-name-row">
-              <h2 class="st-main-name" id="currentStationTitle">경성대·부경대역</h2>
-              <span class="st-ars-num" id="currentStationArs">ARS 07-062</span>
+              <h2 class="st-main-name" id="currentStationTitle">대연역 (부산고려병원)</h2>
+              <span class="st-ars-num" id="currentStationArs">ARS 07-070</span>
             </div>
             <div class="st-subway-row" id="currentStationSubwayTags">
               <span class="subway-chip subway-2호선">부산2호선</span>
             </div>
           </div>
-          <span class="st-walk-badge" id="currentStationDistance">도보 1분 (35m)</span>
+          <span class="st-walk-badge" id="currentStationDistance">탑승지 정류소</span>
         </div>
       </div>
 
@@ -205,15 +252,15 @@
         <div class="fastest-tag">★ 최단시간 추천</div>
         <div class="fastest-main-text" id="fastestBusTitle">지금 24번 버스를 타시면 가장 빠릅니다!</div>
         <div class="fastest-sub-text" id="fastestBusDesc">
-          경성대·부경대역에서 탑승 시 6개 정류장 후 [서면역] 도착 (총 약 14분 소요)
+          대연역에서 탑승 시 6개 정류장 후 [서면역] 도착 (총 약 14분 소요)
         </div>
       </div>
 
-      <!-- BUS CARDS LIST -->
+      <!-- TRANSIT CARDS LIST -->
       <div class="bus-cards-list" id="busListContainer">
         <div class="empty-state">
           <span class="empty-state-icon">⏳</span>
-          실시간 부산 24번 버스 정보를 불러오는 중입니다...
+          대중교통 정보를 불러오는 중입니다...
         </div>
       </div>
 
@@ -246,27 +293,177 @@
 
 </div>
 
-<!-- TOAST NOTIFICATION MESSAGE -->
-<div class="app-toast-container" id="appToast"></div>
-
-  <!-- MODAL: DESTINATION SELECT -->
-  <div class="dialog-overlay" id="destModal">
-    <div class="dialog-card">
-      <div class="dialog-header">
-        <h3 class="dialog-title">🎯 목적지 역/정류소 설정</h3>
-        <button class="dialog-close" id="btnCloseDestModal">&times;</button>
+<!-- 5. SLIDE-OUT MENU DRAWER -->
+<div class="menu-backdrop" id="menuBackdrop"></div>
+<aside class="menu-drawer" id="menuDrawer">
+  <div class="menu-drawer-header">
+    <div class="menu-drawer-brand">
+      <div class="brand-icon-box" style="width:28px; height:28px;">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="4" y="3" width="16" height="15" rx="3"></rect>
+          <circle cx="8" cy="15" r="1.5" fill="currentColor"></circle>
+          <circle cx="16" cy="15" r="1.5" fill="currentColor"></circle>
+        </svg>
       </div>
-      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
-        자주 가는 목적지를 설정해 두시면 내 위치 주변 정류소에서 해당 목적지로 직통 운행하는 버스만 자동으로 필터링하여 최단시간 도착 노선을 안내합니다.
-      </p>
-      <input type="text" id="inputSearchStation" class="clean-input" placeholder="정류소 이름 또는 지하철역 검색 (예: 강남역, 역삼역, 판교역...)" style="width: 100%;">
+      <div>
+        <div style="font-weight: 800; font-size: 15px; color: var(--text-title);">스마트 버스 라우트</div>
+        <div style="font-size: 11px; color: var(--text-muted);">전체 기능 내비게이션 메뉴</div>
+      </div>
+    </div>
+    <button class="menu-close-btn" id="btnCloseMenuDrawer">&times;</button>
+  </div>
 
-      <div class="station-options-list" id="modalStationList">
-        <!-- Rendered via JavaScript -->
+  <div class="menu-drawer-body">
+    <!-- QUICK ACTIONS SECTION -->
+    <div class="menu-section-title">핵심 이동 & 길찾기</div>
+    <div class="menu-item" data-action="nav-bus">
+      <div class="menu-item-icon icon-bus">🚌</div>
+      <div class="menu-item-text">
+        <div class="menu-item-title">버스 경로 내비게이션 (24번 도로 궤적)</div>
+        <div class="menu-item-desc">실제 도로 아스팔트 중심선 주행 및 실시간 버스 위치</div>
+      </div>
+    </div>
+    <div class="menu-item" data-action="nav-subway">
+      <div class="menu-item-icon icon-subway">🚇</div>
+      <div class="menu-item-text">
+        <div class="menu-item-title">지하철역 기반 길찾기 (부산 2호선)</div>
+        <div class="menu-item-desc">7개 역 정차역 기반 최단시간(11분) 정시 경로 확인</div>
+      </div>
+    </div>
+    <div class="menu-item" data-action="tab-all-arrivals">
+      <div class="menu-item-icon icon-arrivals">⏱️</div>
+      <div class="menu-item-text">
+        <div class="menu-item-title">실시간 버스 도착 정보</div>
+        <div class="menu-item-desc">내 주변 정류소 모든 노선 버스 도착 잔여시간</div>
+      </div>
+    </div>
+
+    <div class="menu-section-title">약속 & 동기화</div>
+    <div class="menu-item" data-action="tab-appointments">
+      <div class="menu-item-icon icon-meet">🤝</div>
+      <div class="menu-item-text">
+        <div class="menu-item-title">실시간 약속 위치 공유</div>
+        <div class="menu-item-desc">친구와 서로의 GPS 위치 및 이동 경로 실시간 지도 확인</div>
+      </div>
+    </div>
+    <div class="menu-item" data-action="open-delay-modal">
+      <div class="menu-item-icon icon-delay">⏳</div>
+      <div class="menu-item-text">
+        <div class="menu-item-title">약속 지연 사유 전달하기</div>
+        <div class="menu-item-desc">버스 놓침, 외출 지연 등 늦는 사유와 시간을 상대방에게 알림</div>
+      </div>
+    </div>
+    <div class="menu-item" data-action="tab-recommendations">
+      <div class="menu-item-icon icon-hotplace">☕</div>
+      <div class="menu-item-text">
+        <div class="menu-item-title">조기 도착 추천 핫플</div>
+        <div class="menu-item-desc">약속시간보다 일찍 도착할 때 들르기 좋은 서면 카페/맛집</div>
+      </div>
+    </div>
+
+    <div class="menu-section-title">설정 & 환경</div>
+    <div class="menu-item" data-action="tab-favorites">
+      <div class="menu-item-icon icon-fav">⭐</div>
+      <div class="menu-item-text">
+        <div class="menu-item-title">자주 타는 버스 / 역 즐겨찾기</div>
+        <div class="menu-item-desc">원터치로 관리하는 나의 자주 타는 대중교통 목록</div>
+      </div>
+    </div>
+    <div class="menu-item" data-action="open-dest-modal">
+      <div class="menu-item-icon icon-dest">🎯</div>
+      <div class="menu-item-text">
+        <div class="menu-item-title">목적지 변경 및 검색</div>
+        <div class="menu-item-desc">직통 대중교통 필터링을 위한 기준 목적지 설정</div>
+      </div>
+    </div>
+    <div class="menu-item" data-action="refresh-gps">
+      <div class="menu-item-icon icon-gps">📍</div>
+      <div class="menu-item-text">
+        <div class="menu-item-title">현재 내 위치 GPS 재탐색</div>
+        <div class="menu-item-desc">단말기 GPS 센서 기반 실시간 위치 새로고침</div>
       </div>
     </div>
   </div>
 
-  <script src="/app.js"></script>
+  <div class="menu-drawer-footer">
+    <div style="font-size: 11px; color: var(--text-muted); text-align: center;">
+      스마트 대중교통 내비게이션 v2.4 · 2026-10-06
+    </div>
+  </div>
+</aside>
+
+<!-- 6. MODAL: 약속 지연 사유 및 시간 전송 MODAL -->
+<div class="dialog-overlay" id="delayModal">
+  <div class="dialog-card">
+    <div class="dialog-header">
+      <h3 class="dialog-title">⏳ 약속 지연 알림 보내기</h3>
+      <button class="dialog-close" id="btnCloseDelayModal">&times;</button>
+    </div>
+    <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.4;">
+      예기치 못한 사정으로 늦을 경우, 지연 사유와 예상 시간을 전송하면 상대방 약속 카드에 실시간으로 공유됩니다.
+    </p>
+
+    <!-- 지연 시간 선택 -->
+    <div style="margin-bottom: 14px;">
+      <label style="display:block; font-size:12px; font-weight:700; color:var(--text-title); margin-bottom:6px;">
+        얼마나 늦을 것 같나요?
+      </label>
+      <div class="delay-minutes-chips" id="delayMinutesGroup">
+        <button type="button" class="chip-time" data-mins="5">+5분</button>
+        <button type="button" class="chip-time active" data-mins="10">+10분</button>
+        <button type="button" class="chip-time" data-mins="15">+15분</button>
+        <button type="button" class="chip-time" data-mins="20">+20분</button>
+        <button type="button" class="chip-time" data-mins="30">+30분</button>
+      </div>
+    </div>
+
+    <!-- 늦는 사유 프리셋 선택 -->
+    <div style="margin-bottom: 14px;">
+      <label style="display:block; font-size:12px; font-weight:700; color:var(--text-title); margin-bottom:6px;">
+        늦는 사유를 선택해주세요
+      </label>
+      <div class="delay-reason-chips" id="delayReasonChips">
+        <button type="button" class="chip-reason active" data-reason="버스를 눈앞에서 놓쳐서 다음 버스 탑승 중이에요!">🚌 버스 놓침</button>
+        <button type="button" class="chip-reason" data-reason="집에 급한 볼일이 생겨서 잠시 다녀오는 중이에요!">🏠 집에 다녀옴</button>
+        <button type="button" class="chip-reason" data-reason="도로에 차량 정체가 너무 심해서 서행 중이에요!">🚦 교통 정체</button>
+        <button type="button" class="chip-reason" data-reason="정류소까지 전력질주 중이에요! 5분만 기다려주세요!">🏃 5분 대기 요청</button>
+        <button type="button" class="chip-reason" data-reason="custom">✍️ 직접 입력</button>
+      </div>
+    </div>
+
+    <!-- 직접 입력 인풋 -->
+    <div style="margin-bottom: 18px;">
+      <input type="text" id="inputCustomDelayReason" class="clean-input" placeholder="사유를 입력하세요" value="버스를 눈앞에서 놓쳐서 다음 버스 탑승 중이에요!" style="width: 100%;">
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:8px;">
+      <button class="btn-pill" id="btnCancelDelay">취소</button>
+      <button class="btn-primary-action" id="btnSubmitDelay">상대방에게 지연 전송</button>
+    </div>
+  </div>
+</div>
+
+<!-- 7. MODAL: DESTINATION SELECT -->
+<div class="dialog-overlay" id="destModal">
+  <div class="dialog-card">
+    <div class="dialog-header">
+      <h3 class="dialog-title">🎯 목적지 역/정류소 설정</h3>
+      <button class="dialog-close" id="btnCloseDestModal">&times;</button>
+    </div>
+    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+      자주 가는 목적지를 설정해 두시면 내 위치 주변 정류소에서 해당 목적지로 직통 운행하는 버스만 자동으로 필터링하여 최단시간 도착 노선을 안내합니다.
+    </p>
+    <input type="text" id="inputSearchStation" class="clean-input" placeholder="정류소 이름 또는 지하철역 검색 (예: 강남역, 역삼역, 판교역...)" style="width: 100%;">
+
+    <div class="station-options-list" id="modalStationList">
+      <!-- Rendered via JavaScript -->
+    </div>
+  </div>
+</div>
+
+<!-- TOAST NOTIFICATION MESSAGE -->
+<div class="app-toast-container" id="appToast"></div>
+
+<script src="/app.js"></script>
 </body>
 </html>

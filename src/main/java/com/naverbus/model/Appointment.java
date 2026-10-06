@@ -15,6 +15,9 @@ public class Appointment {
     private double friendLat;       // 친구 실시간 위도
     private double friendLng;       // 친구 실시간 경도
     private boolean active;         // 약속 유효 상태
+    private int delayMinutes;       // 지연 시간 (분)
+    private String delayReason;     // 지연 사유 (예: 버스를 놓쳤어요)
+    private String delaySender;     // 지연 알림 발신자
 
     public Appointment() {}
 
@@ -29,6 +32,9 @@ public class Appointment {
         this.creatorLat = creatorLat;
         this.creatorLng = creatorLng;
         this.active = true;
+        this.delayMinutes = 0;
+        this.delayReason = null;
+        this.delaySender = null;
     }
 
     public String getId() { return id; }
@@ -66,4 +72,13 @@ public class Appointment {
 
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
+
+    public int getDelayMinutes() { return delayMinutes; }
+    public void setDelayMinutes(int delayMinutes) { this.delayMinutes = delayMinutes; }
+
+    public String getDelayReason() { return delayReason; }
+    public void setDelayReason(String delayReason) { this.delayReason = delayReason; }
+
+    public String getDelaySender() { return delaySender; }
+    public void setDelaySender(String delaySender) { this.delaySender = delaySender; }
 }

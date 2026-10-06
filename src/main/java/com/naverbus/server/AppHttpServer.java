@@ -271,6 +271,13 @@ public class AppHttpServer {
                 double lng = root.path("lng").asDouble();
                 boolean success = appointmentService.updateLocation(id, isCreator, lat, lng);
                 sendJsonResponse(exchange, 200, Map.of("success", success));
+            } else if ("delay".equalsIgnoreCase(action)) {
+                String id = root.path("id").asText();
+                String who = root.path("who").asText("나");
+                int delayMinutes = root.path("delayMinutes").asInt(10);
+                String reason = root.path("reason").asText("이동 지연");
+                boolean success = appointmentService.notifyDelay(id, who, delayMinutes, reason);
+                sendJsonResponse(exchange, success ? 200 : 404, Map.of("success", success));
             } else {
                 // create
                 String title = root.path("title").asText("실시간 버스 약속");

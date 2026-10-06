@@ -68,4 +68,18 @@ public class AppointmentService {
         }
         return false;
     }
+
+    public boolean notifyDelay(String id, String who, int delayMinutes, String reason) {
+        Appointment app = appointmentStore.get(id);
+        if (app != null) {
+            app.setDelayMinutes(delayMinutes);
+            app.setDelayReason(reason);
+            app.setDelaySender(who);
+            if (app.getTargetTime() != null) {
+                app.setTargetTime(app.getTargetTime().plusMinutes(delayMinutes));
+            }
+            return true;
+        }
+        return false;
+    }
 }
