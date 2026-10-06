@@ -23,9 +23,16 @@
     <div class="header-container">
       <a href="/" class="brand-wrapper">
         <div class="brand-icon-box">
-          <!-- BUS SVG ICON -->
-          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z"/>
+          <!-- SLEEK SLIM TRANSIT VECTOR ICON -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="3" width="16" height="15" rx="3"></rect>
+            <path d="M4 11h16"></path>
+            <path d="M8 6h2"></path>
+            <path d="M14 6h2"></path>
+            <circle cx="8" cy="15" r="1.5" fill="currentColor"></circle>
+            <circle cx="16" cy="15" r="1.5" fill="currentColor"></circle>
+            <path d="M6 18v2.5"></path>
+            <path d="M18 18v2.5"></path>
           </svg>
         </div>
         <div class="brand-text-col">
@@ -37,30 +44,41 @@
         </div>
       </a>
 
-      <!-- HEADER ACTIONS: GPS & PRESET & SHARE -->
+      <!-- HEADER ACTIONS: GPS & PRESET & SHARE (PROPERLY ORDERED & SAFE PADDING) -->
       <div class="header-actions">
-        <div class="gps-status-pill">
-          <div class="status-dot"></div>
-          <span class="gps-loc-text" id="gpsStatusText">내 GPS 위치 확인 중...</span>
-        </div>
-
-        <button class="btn-pill" id="btnRefreshGps" title="내 위치 GPS 다시 가져오기">
-          <span>📍</span> 위치 갱신
+        <!-- 1. APPOINTMENT SHARE BUTTON (PROMINENT, NO CLIPPING) -->
+        <button class="btn-share-appointment" id="btnShareAppointmentLink" title="친구에게 내 실시간 버스 및 약속 위치 공유">
+          <svg class="btn-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+          </svg>
+          <span>약속 공유</span>
         </button>
 
+        <!-- 2. REFRESH GPS -->
+        <button class="btn-pill" id="btnRefreshGps" title="내 위치 GPS 다시 가져오기">
+          <svg class="btn-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7z"></path>
+            <circle cx="12" cy="9" r="2.5"></circle>
+          </svg>
+          <span>위치 갱신</span>
+        </button>
+
+        <!-- 3. PRESET SIMULATION SELECTOR -->
         <select class="select-preset" id="locationPresetSelect" title="위치 시뮬레이션">
-          <option value="35.13750,129.10050">시뮬레이션: 경성대·부경대역 (수영로)</option>
-          <option value="35.14150,129.10850">시뮬레이션: 남천역 (수영구 남천동)</option>
-          <option value="35.15250,129.11550">시뮬레이션: 광안역 (수영구 광안동)</option>
-          <option value="35.16100,129.11650">시뮬레이션: 수영역 (수영구 수영동)</option>
-          <option value="35.13550,129.09200">시뮬레이션: 대연역 (남구)</option>
-          <option value="35.15780,129.05920">시뮬레이션: 서면역 (부산진구)</option>
+          <option value="35.13750,129.10050">경성대·부경대역 (수영로)</option>
+          <option value="35.14150,129.10850">남천역 (남천동)</option>
+          <option value="35.15250,129.11550">광안역 (광안동)</option>
+          <option value="35.16100,129.11650">수영역 (수영동)</option>
+          <option value="35.13550,129.09200">대연역 (남구)</option>
+          <option value="35.15780,129.05920">서면역 (부산진구)</option>
         </select>
 
-        <!-- KAKAO / WEB SHARE APPOINTMENT BUTTON -->
-        <button class="btn-share-appointment" id="btnShareAppointmentLink" title="친구에게 내 실시간 버스 및 약속 위치 공유">
-          <span>🔗</span> 약속 공유 링크 복사
-        </button>
+        <!-- 4. GPS STATUS INDICATOR -->
+        <div class="gps-status-pill">
+          <div class="status-dot"></div>
+          <span class="gps-loc-text" id="gpsStatusText">GPS 연결 중...</span>
+        </div>
       </div>
     </div>
   </header>
@@ -73,7 +91,14 @@
       <button id="btnTileOsm" class="tile-toggle-btn" title="상세 보행 골목길">골목길</button>
     </div>
     <button class="btn-map-circle" id="btnCenterUserGps" title="내 위치로 지도 중심 이동">
-      <span>🎯</span>
+      <svg class="btn-svg-icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="8"></circle>
+        <line x1="12" y1="2" x2="12" y2="6"></line>
+        <line x1="12" y1="18" x2="12" y2="22"></line>
+        <line x1="2" y1="12" x2="6" y2="12"></line>
+        <line x1="18" y1="12" x2="22" y2="12"></line>
+        <circle cx="12" cy="12" r="2.5" fill="currentColor"></circle>
+      </svg>
     </button>
   </div>
 
@@ -85,7 +110,7 @@
       <div class="drag-bar"></div>
       <div class="sheet-mini-summary">
         <div class="mini-summary-content">
-          <span class="mini-badge">🚌 24번 직통</span>
+          <span class="mini-badge">24번 직통</span>
           <span class="mini-route-text" id="miniSummaryText">대연역 ➔ 서면역 직통 (14분 소요)</span>
         </div>
         <div class="sheet-controls-group">
@@ -105,7 +130,7 @@
         <div class="route-flow-box">
           <div class="flow-node">
             <span class="flow-node-badge">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
               현재 내 위치 (수영구·남구)
             </span>
             <span class="flow-node-title" id="bannerCurrentStationName">경성대·부경대역 (수영로)</span>
@@ -120,7 +145,7 @@
 
           <div class="flow-node">
             <span class="flow-node-badge">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="#38BDF8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="#38BDF8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
               설정된 목적지
             </span>
             <span class="flow-node-title" id="bannerDestinationStationName">서면역.서면지하상가</span>
@@ -129,28 +154,33 @@
 
         <div class="hero-actions-box">
           <div class="hero-count-tag" id="bannerDirectBusesCount">
-            <span>🚌</span> 24번 직통 버스 탐색 중...
+            24번 직통 버스 탐색 중...
           </div>
           <button class="btn-change-destination" id="btnOpenDestModal">목적지 변경</button>
         </div>
       </section>
 
-      <!-- TABS -->
+      <!-- TABS (SLEEK SLIM SVG ICONS, NO CLIPPING) -->
       <nav class="custom-tab-bar">
         <button class="tab-btn active" data-tab="destination">
-          <span>🎯</span> 직통 버스
+          <svg class="tab-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
+          <span>직통 버스</span>
         </button>
         <button class="tab-btn" data-tab="all-arrivals">
-          <span>🚌</span> 전체 도착
+          <svg class="tab-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="15" rx="3"/><path d="M4 11h16"/><path d="M6 18v2"/><path d="M18 18v2"/><circle cx="8" cy="15" r="1.5"/><circle cx="16" cy="15" r="1.5"/></svg>
+          <span>전체 도착</span>
         </button>
         <button class="tab-btn" data-tab="favorites">
-          <span>⭐</span> 자주 타는 역
+          <svg class="tab-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span>자주 타는 역</span>
         </button>
         <button class="tab-btn" data-tab="appointments">
-          <span>🤝</span> 실시간 약속
+          <svg class="tab-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>실시간 약속</span>
         </button>
         <button class="tab-btn" data-tab="recommendations">
-          <span>✨</span> 조기 도착 추천
+          <svg class="tab-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+          <span>조기 도착 추천</span>
         </button>
       </nav>
 

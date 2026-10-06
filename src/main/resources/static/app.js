@@ -593,13 +593,17 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="appointment-card">
         <div class="appointment-header">
           <div class="appointment-title">
-            <span>🤝</span> ${app.title}
+            <svg class="tab-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span>${app.title}</span>
           </div>
-          <span class="appointment-badge">실시간 위치 공유 중</span>
+          <button class="btn-share-appointment" id="btnCardShareLink" style="padding: 4px 10px; font-size: 10.5px;">
+            <svg class="btn-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+            <span>링크 복사</span>
+          </button>
         </div>
 
-        <div style="font-size:13px; color:var(--text-muted); margin-bottom:8px;">
-          📍 <strong>약속 장소:</strong> ${app.destinationName} &nbsp;|&nbsp; ⏱️ <strong>약속 시간:</strong> 25분 뒤 (12:30)
+        <div style="font-size:11.5px; color:var(--text-muted); margin-bottom:8px;">
+          <strong>장소:</strong> ${app.destinationName} &nbsp;|&nbsp; <strong>약속 시간:</strong> 25분 뒤 (12:30)
         </div>
 
         <div class="appointment-members">
@@ -607,38 +611,61 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="member-avatar avatar-me">나</div>
             <div>
               <div class="member-info-name">${app.creatorName}</div>
-              <div class="member-info-status">📍 대연역 (24번 탑승 준비)</div>
+              <div class="member-info-status">대연역 (24번 탑승 준비)</div>
             </div>
           </div>
           <div class="member-col">
             <div class="member-avatar avatar-friend">친</div>
             <div>
               <div class="member-info-name">${app.friendName || '친구 대기 중'}</div>
-              <div class="member-info-status">📍 지게골역 부근 (도착 8분 전)</div>
+              <div class="member-info-status">문현역 부근 (도착 8분 전)</div>
             </div>
           </div>
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-          <span style="font-size:12px; color:#2563EB; font-weight:700;">
-            ⚡ 약속 시간 동안에만 서로의 GPS가 지도에 실시간 표시됩니다.
+          <span style="font-size:11px; color:#2563EB; font-weight:700;">
+            약속 시간 동안에만 서로의 GPS가 지도에 실시간 표시됩니다.
           </span>
-          <button class="btn-pill" id="btnSimulateFriendMove" style="font-size:11px;">
+          <button class="btn-pill" id="btnSimulateFriendMove" style="font-size:10.5px; padding:3px 9px;">
             친구 위치 갱신
           </button>
         </div>
       </div>
 
-      <div class="station-overview-card" style="margin-top:12px; border-left:4px solid #2563EB;">
-        <div style="font-size:14px; font-weight:800; color:var(--text-title); margin-bottom:4px;">
-          💡 실시간 도착 예측 & 일정 피드백
+      <div class="station-overview-card" style="margin-top:10px; border-left:3px solid #2563EB; padding:12px 14px;">
+        <div style="font-size:12.5px; font-weight:800; color:var(--text-title); margin-bottom:3px;">
+          실시간 도착 예측 & 일정 피드백
         </div>
-        <div style="font-size:13px; color:var(--text-body);">
+        <div style="font-size:11.5px; color:var(--text-body); line-height:1.4;">
           내가 탈 24번 버스는 <strong>약 14분 후</strong> 서면역 도착 예정입니다.<br>
-          약속 시간보다 <strong>약 11분 일찍</strong> 도착하므로, 상단 [✨ 조기 도착 추천] 탭에서 대기할 장소를 확인해보세요!
+          약속 시간보다 <strong>약 11분 일찍</strong> 도착하므로, 상단 [조기 도착 추천] 탭에서 대기 장소를 확인해보세요!
         </div>
       </div>
     `;
+
+    const btnCardShare = document.getElementById('btnCardShareLink');
+    if (btnCardShare) {
+      btnCardShare.addEventListener('click', async () => {
+        const meetId = app.id || 'MEET-2490';
+        const shareUrl = `${window.location.origin}${window.location.pathname}?meetId=${meetId}`;
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(shareUrl);
+          } else {
+            const tempInput = document.createElement('input');
+            tempInput.value = shareUrl;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+          }
+          showToast('약속 공유 링크가 복사되었습니다!');
+        } catch (e) {
+          showToast('공유 링크: ' + shareUrl);
+        }
+      });
+    }
 
     const btnMove = document.getElementById('btnSimulateFriendMove');
     if (btnMove) {
@@ -724,7 +751,9 @@ document.addEventListener('DOMContentLoaded', () => {
         <!-- TRACK STRIP -->
         <div class="route-track-strip">
           <div class="track-point track-start" title="${arr.previousStationName}"></div>
-          <div class="track-bus-marker" title="실시간 위치">🚌</div>
+          <div class="track-bus-marker" title="실시간 위치">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#2563EB" stroke-width="2.2" stroke-linecap="round"><rect x="4" y="3" width="16" height="15" rx="2.5"/><path d="M4 11h16"/><circle cx="8" cy="15" r="1.5" fill="#2563EB"/><circle cx="16" cy="15" r="1.5" fill="#2563EB"/></svg>
+          </div>
           <div class="track-point track-end" title="${m.boardingStation.name}"></div>
         </div>
 
@@ -769,7 +798,9 @@ document.addEventListener('DOMContentLoaded', () => {
         <!-- TRACK STRIP -->
         <div class="route-track-strip">
           <div class="track-point track-start" title="${arr.previousStationName}"></div>
-          <div class="track-bus-marker" title="실시간 위치">🚌</div>
+          <div class="track-bus-marker" title="실시간 위치">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#2563EB" stroke-width="2.2" stroke-linecap="round"><rect x="4" y="3" width="16" height="15" rx="2.5"/><path d="M4 11h16"/><circle cx="8" cy="15" r="1.5" fill="#2563EB"/><circle cx="16" cy="15" r="1.5" fill="#2563EB"/></svg>
+          </div>
           <div class="track-point track-end" title="${arr.stationName}"></div>
         </div>
 
@@ -907,47 +938,80 @@ document.addEventListener('DOMContentLoaded', () => {
   let userPinMarker = null;
   let friendPinMarker = null;
 
-  // 부산 24번 버스 대연역 ~ 서면역 실제 도로 GPS 위경도 경로 (도로를 따라 정밀 매핑)
+  // 부산 24번 버스 대연역 ~ 서면역 실제 도로 GPS 위경도 경로 (실제 아스팔트 차도 & 교량 중심선 정밀 매핑)
   const busan24RoadCoords = [
-    [35.13550, 129.09200], // 대연역 (부산고려병원)
-    [35.13570, 129.08800], // 수영로 도로 커브
-    [35.13600, 129.08450], // 못골역 (남구청)
-    [35.13660, 129.08000], // 대연고개
-    [35.13720, 129.07600], // 지게골역
-    [35.13810, 129.07100], // 문현로 축
-    [35.13900, 129.06650], // 문현교차로 (문현역)
-    [35.14350, 129.06550], // 금융거리 진입
-    [35.14800, 129.06450], // 국제금융센터·부산은행역 (BIFC 63빌딩)
-    [35.15200, 129.06200], // 범내골 교차로 방면
-    [35.15500, 129.06050], // 중앙대로 진입
-    [35.15780, 129.05920]  // 서면역 (서면지하상가)
+    // 1. 수영로 (대연역 ➔ 못골역 ➔ 지게골역 ➔ 문현교차로)
+    [35.13545, 129.09210], // 대연역 (부산고려병원 앞 교차로)
+    [35.13555, 129.09050], // 수영로 대연초등학교 앞
+    [35.13570, 129.08800], // 수영로 남구보건소
+    [35.13605, 129.08470], // 못골역 (남구청)
+    [35.13635, 129.08250], // 대연고개 오르막 도로
+    [35.13665, 129.08020], // 대연고개
+    [35.13695, 129.07830], // 대연고개 완만한 커브
+    [35.13735, 129.07605], // 지게골역
+    [35.13765, 129.07400], // 수영로 내리막
+    [35.13805, 129.07120], // 문현동 진입 차로
+    [35.13840, 129.06880], // 문현고가교 인근
+    [35.13865, 129.06730], // 문현교차로 접근
+    [35.13885, 129.06640], // 문현교차로 (수영로·전포대로 교차점)
+
+    // 2. 전포대로 북진 (동천 우측 차도, 강을 건너지 않고 도로를 따라 주행)
+    [35.13960, 129.06640], // 전포대로 진입
+    [35.14150, 129.06625], // 삼성아파트·문현역 앞 전포대로
+    [35.14320, 129.06590], // 전포대로 직진
+    [35.14500, 129.06540], // 전포대로 BIFC 접근
+    [35.14650, 129.06500], // 부산국제금융센터 동편 도로
+    [35.14750, 129.06470], // 국제금융센터·부산은행역 앞 전포대로
+    [35.14920, 129.06420], // 문전교차로 (전포대로와 황령대로 교차점)
+
+    // 3. 황령대로 좌회전 (실제 도로 교량인 범5교/동천교를 건너 지오플레이스 도착)
+    [35.14928, 129.06330], // 황령대로 진입
+    [35.14935, 129.06200], // 황령대로 동천교 교량 통과 (실제 차도 다리)
+    [35.14940, 129.06140], // 동천 서편 차로
+    [35.14945, 129.06080], // 지오플레이스 (홈플러스 서면점 앞 삼거리)
+
+    // 4. 동천로/중앙대로 북서진 (서면 중심부 간선도로)
+    [35.15020, 129.06030], // 동천로/신천대로 연결 도로
+    [35.15120, 129.05990], // 전포천 복개도로 차선
+    [35.15220, 129.05970], // 서면한전 접근
+    [35.15320, 129.05950], // 서면한전 앞 도로
+    [35.15450, 129.05935], // 중앙대로 합류
+    [35.15600, 129.05925], // 중앙대로 메인 차로
+    [35.15780, 129.05920]  // 서면역·서면지하상가 (서면교차로 남측 정류소)
   ];
 
   // 주요 정류소 정보 (실제 GPS)
   const realStations = [
-    { id: 'ST-BS-DY', name: '대연역 (부산고려병원)', lat: 35.13550, lng: 129.09200, ars: '07-070', sub: '부산2호선' },
-    { id: 'ST-BS-MG', name: '못골역 (남구청)', lat: 35.13600, lng: 129.08450, ars: '07-078', sub: '부산2호선' },
-    { id: 'ST-BS-JG', name: '지게골역', lat: 35.13720, lng: 129.07600, ars: '07-085', sub: '부산2호선' },
-    { id: 'ST-BS-MH', name: '문현교차로 (문현역)', lat: 35.13900, lng: 129.06650, ars: '07-092', sub: '부산2호선' },
-    { id: 'ST-BS-BIFC', name: '국제금융센터·부산은행역', lat: 35.14800, lng: 129.06450, ars: '05-015', sub: 'BIFC 63빌딩' },
+    { id: 'ST-BS-DY', name: '대연역 (부산고려병원)', lat: 35.13545, lng: 129.09210, ars: '07-070', sub: '부산2호선' },
+    { id: 'ST-BS-MG', name: '못골역 (남구청)', lat: 35.13605, lng: 129.08470, ars: '07-078', sub: '부산2호선' },
+    { id: 'ST-BS-JG', name: '지게골역', lat: 35.13735, lng: 129.07605, ars: '07-085', sub: '부산2호선' },
+    { id: 'ST-BS-MH', name: '문현교차로 (문현역)', lat: 35.13885, lng: 129.06640, ars: '07-092', sub: '부산2호선' },
+    { id: 'ST-BS-BIFC', name: '국제금융센터·부산은행역', lat: 35.14750, lng: 129.06470, ars: '05-015', sub: 'BIFC 63빌딩' },
+    { id: 'ST-BS-GOP', name: '지오플레이스 (홈플러스)', lat: 35.14945, lng: 129.06080, ars: '05-021', sub: '황령대로' },
+    { id: 'ST-BS-KEPCO', name: '서면한전', lat: 35.15320, lng: 129.05950, ars: '05-025', sub: '중앙대로' },
     { id: 'ST-BS-SMN', name: '서면역 (서면지하상가)', lat: 35.15780, lng: 129.05920, isDest: true, ars: '05-028', sub: '1·2호선 환승역' }
   ];
 
-  // 지도 타일 레이어 객체
+  // 지도 타일 레이어 객체 (High-DPI 레티나 지원으로 확대 시 깨짐 원천 방지)
   let currentTileLayer = null;
   const tileLayers = {
-    // 1. Google Maps 실제 일반 지도 (실제 도로, 건물, 골목, 랜드마크 고해상도 한글 표기)
-    google: L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-      maxZoom: 20,
+    // 1. Google Maps 실제 일반 지도 (scale=2로 고해상도 벡터/래스터 타일 제공)
+    google: L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&scale=2', {
+      tileSize: 256,
+      maxNativeZoom: 19,
+      maxZoom: 19,
       attribution: '&copy; Google Maps'
     }),
-    // 2. Google Maps 실제 위성 + 도로명 하이브리드 지도 (실제 건물 옥상, 항공뷰, 도로망)
-    hybrid: L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-      maxZoom: 20,
+    // 2. Google Maps 실제 위성 + 도로명 하이브리드 지도
+    hybrid: L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&scale=2', {
+      tileSize: 256,
+      maxNativeZoom: 19,
+      maxZoom: 19,
       attribution: '&copy; Google Satellite'
     }),
-    // 3. OpenStreetMap 상세 골목 지도 (세부 지번, 상가명, 횡단보도 정밀 표시)
-    osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // 3. OpenStreetMap 상세 골목 지도
+    osm: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxNativeZoom: 19,
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors'
     })
@@ -956,15 +1020,19 @@ document.addEventListener('DOMContentLoaded', () => {
   function initRealLeafletMap() {
     if (!el.mapContainer || leafletMap) return;
 
-    // 대연역과 서면역 사이 중앙에 카메라 포커스 (기본 줌 레벨 14.5로 도로/상가가 선명히 보이게 설정)
+    // 대연역과 서면역 사이 중앙에 정수 줌 레벨 15로 선명하게 세팅 (zoomSnap: 1로 흐림 현상 원천 차단)
     leafletMap = L.map(el.mapContainer, {
       center: [35.1465, 129.0740],
-      zoom: 14.5,
+      zoom: 15,
+      zoomSnap: 1,
+      zoomDelta: 1,
+      minZoom: 11,
+      maxZoom: 19,
       zoomControl: false
     });
     L.control.zoom({ position: 'bottomright' }).addTo(leafletMap);
 
-    // 기본 레이어: Google Maps 실제 도로/건물 지도 적용!
+    // 기본 레이어: Google Maps 실제 도로/건물 고해상도 지도 적용!
     currentTileLayer = tileLayers.google.addTo(leafletMap);
 
     stationMarkersGroup = L.layerGroup().addTo(leafletMap);
@@ -973,12 +1041,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // 실제 도로를 따라 달리는 파란색 노선선 (Google Transit Blue)
     busPolyline = L.polyline(busan24RoadCoords, {
       color: '#1A73E8',
-      weight: 6,
-      opacity: 0.85,
+      weight: 5,
+      opacity: 0.9,
       smoothFactor: 1
     }).addTo(leafletMap);
 
-    busPolyline.bindPopup('<b>🚌 부산 24번 버스 실제 도로 노선축</b><br>대연역 ➔ 못골역 ➔ 지게골역 ➔ 문현교차로 ➔ BIFC ➔ 서면역');
+    busPolyline.bindPopup('<b>🚌 부산 24번 버스 실제 도로 노선축</b><br>수영로 ➔ 전포대로 ➔ 황령대로 동천교 ➔ 중앙대로 ➔ 서면역');
 
     // 지도 타일 전환 버튼 이벤트 바인딩
     setupTileSwitcherEvents();
@@ -1074,37 +1142,37 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       marker.bindPopup(`
-        <div style="font-family:-apple-system, sans-serif; font-size:12px; min-width:140px;">
-          <strong style="font-size:14px; color:#1E293B;">🚏 ${st.name}</strong><br>
+        <div style="font-family:-apple-system, sans-serif; font-size:11px; min-width:130px; line-height:1.4;">
+          <strong style="font-size:12.5px; color:#1E293B;">${st.name}</strong><br>
           <span style="color:#64748B;">ARS ${st.ars} · ${st.sub}</span><br>
-          <span style="display:inline-block; margin-top:4px; padding:2px 6px; background:#EFF6FF; color:#2563EB; font-weight:700; border-radius:4px;">
-            ${isCur ? '📍 현재 내 위치' : (st.isDest ? '🚩 약속 목적지' : '정차 정류소')}
+          <span style="display:inline-block; margin-top:4px; padding:2px 6px; background:#EFF6FF; color:#2563EB; font-weight:700; border-radius:4px; font-size:10px;">
+            ${isCur ? '현재 내 위치' : (st.isDest ? '약속 목적지' : '정차 정류소')}
           </span>
         </div>
       `);
     });
 
-    // 2. [실시간 약속] 친구 실시간 GPS 핀 (실제 문현~지게골 사이 도로 좌표)
+    // 2. [실시간 약속] 친구 실시간 GPS 핀 (실제 문현역 앞 전포대로 도로 좌표)
     if (state.activeAppointment && state.activeAppointment.friendName) {
-      const friendLat = 35.1415;
-      const friendLng = 129.0660;
+      const friendLat = 35.14150;
+      const friendLng = 129.06625;
       const friendIcon = L.divIcon({
         className: 'friend-pin-wrapper',
-        html: `<div class="leaflet-friend-pin"></div>`,
-        iconSize: [18, 18],
-        iconAnchor: [9, 9]
+        html: `<div class="leaflet-friend-pin" title="${state.activeAppointment.friendName}"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7]
       });
 
       const friendMarker = L.marker([friendLat, friendLng], { icon: friendIcon }).addTo(stationMarkersGroup);
       friendMarker.bindPopup(`
-        <div style="font-size:12px;">
-          <strong style="color:#EA580C; font-size:13px;">🤝 ${state.activeAppointment.friendName}</strong><br>
-          <span>실시간 이동 중 (서면 도착 8분 전)</span>
+        <div style="font-size:11px; line-height:1.4;">
+          <strong style="color:#EA580C; font-size:12px;">${state.activeAppointment.friendName}</strong><br>
+          <span style="color:#475569;">전포대로 이동 중 (서면 도착 8분 전)</span>
         </div>
       `).openPopup();
     }
 
-    // 3. 실제 도착 시간과 연동되어 도로 위를 달리는 24번 버스 마커
+    // 3. 실제 도착 시간과 연동되어 도로 위를 달리는 24번 버스 마커 (슬림 벡터 배지)
     let bus1Sec = 180;
     if (state.cachedMatches && state.cachedMatches.length > 0 && state.cachedMatches[0].arrivalInfo) {
       bus1Sec = state.cachedMatches[0].arrivalInfo.remainingSeconds;
@@ -1114,13 +1182,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const busCoord = interpolateRoadPosition(busan24RoadCoords, bus1Sec);
     const busIcon = L.divIcon({
       className: 'bus-icon-wrapper',
-      html: `<div class="leaflet-bus-icon">🚌 24번 (${Math.max(1, Math.round(bus1Sec / 60))}분 전)</div>`,
-      iconSize: [100, 24],
-      iconAnchor: [50, 12]
+      html: `<div class="leaflet-bus-icon"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="3" width="16" height="15" rx="2.5"/><path d="M4 11h16"/><circle cx="8" cy="15" r="1.5" fill="currentColor"/><circle cx="16" cy="15" r="1.5" fill="currentColor"/></svg><span>24번 (${Math.max(1, Math.round(bus1Sec / 60))}분 전)</span></div>`,
+      iconSize: [96, 22],
+      iconAnchor: [48, 11]
     });
 
     const liveBusMarker = L.marker(busCoord, { icon: busIcon }).addTo(liveBusMarkersGroup);
-    liveBusMarker.bindPopup(`<b>🚌 부산 24번 버스</b><br>서면 방면 운행 중<br>도착 예정: 약 ${Math.max(1, Math.round(bus1Sec / 60))}분 후`);
+    liveBusMarker.bindPopup(`<b>부산 24번 버스</b><br>서면 방면 운행 중<br>도착 예정: 약 ${Math.max(1, Math.round(bus1Sec / 60))}분 후`);
   }
 
   // 실제 도로 좌표 리스트 위에서 남은 시간에 따라 부드럽게 위치 보간하는 함수
