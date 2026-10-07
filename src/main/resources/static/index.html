@@ -209,6 +209,30 @@
         </div>
       </div>
 
+      <!-- SELECTED PLACE WALKING NAVIGATION BANNER -->
+      <div class="place-navigation-banner" id="placeNavigationBanner" style="display: none;">
+        <div class="place-nav-header">
+          <div class="place-nav-badge">🚶 도보 길안내 연동</div>
+          <button class="place-nav-close" id="btnClosePlaceNav" title="길안내 닫기">&times;</button>
+        </div>
+        <div class="place-nav-body">
+          <div class="place-nav-title" id="placeNavTitle">장소명</div>
+          <div class="place-nav-dist-row">
+            <span class="place-nav-dist" id="placeNavDistance">450m</span>
+            <span class="place-nav-time" id="placeNavWalkTime">도보 약 6분 소요</span>
+          </div>
+          <div class="place-nav-address" id="placeNavAddress">부산 부산진구 ...</div>
+        </div>
+        <div class="place-nav-actions">
+          <a href="#" target="_blank" class="btn-external-map btn-naver-map" id="btnOpenNaverMap">
+            <span>네이버 지도 길찾기</span>
+          </a>
+          <a href="#" target="_blank" class="btn-external-map btn-kakao-map" id="btnOpenKakaoMap">
+            <span>카카오맵 길찾기</span>
+          </a>
+        </div>
+      </div>
+
       <!-- MAIN CONTENT LIST CONTAINER -->
       <div class="bus-cards-list" id="busListContainer">
         <div class="empty-state">

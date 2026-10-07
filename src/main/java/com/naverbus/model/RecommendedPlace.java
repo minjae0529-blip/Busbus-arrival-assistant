@@ -11,11 +11,17 @@ public class RecommendedPlace {
     private String badge;          // 태그 (예: "인기 급상승", "분위기 맛집")
     private String suitableStay;   // 추천 체류 시간 (예: "15~30분 추천")
     private String imageUrl;       // 장소 대표 고화질 사진 URL
+    private double latitude;       // 위도
+    private double longitude;      // 경도
+    private String theme;          // "FRIEND"(친구와 함께), "SOLO"(혼자 여유), "ALL"
+    private String address;        // 상세 주소
 
     public RecommendedPlace() {}
 
     public RecommendedPlace(String name, String category, String description, String walkMinutes,
-                            int naverSearchRank, double googleRating, int reviewCount, String badge, String suitableStay, String imageUrl) {
+                            int naverSearchRank, double googleRating, int reviewCount, String badge,
+                            String suitableStay, String imageUrl, double latitude, double longitude,
+                            String theme, String address) {
         this.name = name;
         this.category = category;
         this.description = description;
@@ -26,6 +32,10 @@ public class RecommendedPlace {
         this.badge = badge;
         this.suitableStay = suitableStay;
         this.imageUrl = imageUrl;
+        this.latitude = latitude;
+        this.longitude = longitude;
+        this.theme = theme;
+        this.address = address;
     }
 
     public String getName() { return name; }
@@ -38,4 +48,8 @@ public class RecommendedPlace {
     public String getBadge() { return badge; }
     public String getSuitableStay() { return suitableStay; }
     public String getImageUrl() { return imageUrl; }
+    public double getLatitude() { return latitude; }
+    public double getLongitude() { return longitude; }
+    public String getTheme() { return theme; }
+    public String getAddress() { return address; }
 }

@@ -1590,3 +1590,180 @@ body, html {
     right: 20px;
   }
 }
+
+/* ========================================================
+   13. PLACE NAVIGATION BANNER & THEME FILTERS
+   ======================================================== */
+.place-navigation-banner {
+  background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+  border: 1.5px solid #93C5FD;
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  margin-bottom: 14px;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.12);
+  animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.place-nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.place-nav-badge {
+  background: var(--brand-primary);
+  color: white;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+}
+
+.place-nav-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #64748B;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.place-nav-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #1E3A8A;
+  margin-bottom: 3px;
+}
+
+.place-nav-dist-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.place-nav-dist {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--brand-primary);
+}
+
+.place-nav-time {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1E40AF;
+}
+
+.place-nav-address {
+  font-size: 11.5px;
+  color: #475569;
+  margin-bottom: 10px;
+}
+
+.place-nav-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-external-map {
+  flex: 1;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.btn-naver-map {
+  background: #03C75A;
+  color: white;
+  box-shadow: 0 2px 6px rgba(3, 199, 90, 0.25);
+}
+
+.btn-naver-map:hover {
+  background: #02b350;
+}
+
+.btn-kakao-map {
+  background: #FEE500;
+  color: #191919;
+  box-shadow: 0 2px 6px rgba(254, 229, 0, 0.25);
+}
+
+.btn-kakao-map:hover {
+  background: #ecd400;
+}
+
+/* Category Filter Chips in Recommendations */
+.place-filter-chips-row {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.place-filter-chips-row::-webkit-scrollbar {
+  display: none;
+}
+
+.btn-filter-tag {
+  background: #FFFFFF;
+  border: 1px solid var(--border-light);
+  color: var(--text-body);
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 5px 11px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.btn-filter-tag:hover {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+}
+
+.btn-filter-tag.active {
+  background: var(--brand-primary-light);
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+  font-weight: 800;
+}
+
+/* Hotplace Selected Leaflet Marker */
+.leaflet-hotplace-pin {
+  width: 22px;
+  height: 22px;
+  background-color: #EF4444;
+  border: 3.5px solid white;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.4), 0 4px 10px rgba(0,0,0,0.3);
+  animation: pulse-hotplace 1.6s infinite;
+}
+
+@keyframes pulse-hotplace {
+  0% { transform: scale(1); box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.4); }
+  50% { transform: scale(1.15); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0.15); }
+  100% { transform: scale(1); box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.4); }
+}
+
+.hotplace-tooltip {
+  background: rgba(239, 68, 68, 0.95) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 6px !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  padding: 3px 8px !important;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.25) !important;
+}
