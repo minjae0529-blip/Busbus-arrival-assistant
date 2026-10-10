@@ -18,6 +18,7 @@ public class Appointment {
     private int delayMinutes;       // 지연 시간 (분)
     private String delayReason;     // 지연 사유 (예: 버스를 놓쳤어요)
     private String delaySender;     // 지연 알림 발신자
+    private java.util.List<RecommendedPlace> coursePlaces = new java.util.ArrayList<>(); // 1차~3차 약속 코스 목록
 
     public Appointment() {}
 
@@ -35,6 +36,7 @@ public class Appointment {
         this.delayMinutes = 0;
         this.delayReason = null;
         this.delaySender = null;
+        this.coursePlaces = new java.util.ArrayList<>();
     }
 
     public String getId() { return id; }
@@ -81,4 +83,7 @@ public class Appointment {
 
     public String getDelaySender() { return delaySender; }
     public void setDelaySender(String delaySender) { this.delaySender = delaySender; }
+
+    public java.util.List<RecommendedPlace> getCoursePlaces() { return coursePlaces; }
+    public void setCoursePlaces(java.util.List<RecommendedPlace> coursePlaces) { this.coursePlaces = coursePlaces; }
 }

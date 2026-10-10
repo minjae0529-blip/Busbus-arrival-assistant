@@ -59,6 +59,7 @@ public class AppHttpServer {
         server.createContext("/api/destination", this::handleDestination);
         server.createContext("/api/favorites", this::handleFavorites);
         server.createContext("/api/appointments", this::handleAppointments);
+        server.createContext("/api/meetup/midpoint", this::handleMidpoint);
         server.createContext("/api/recommendations", this::handleRecommendations);
 
         // 정적 HTML/CSS/JS 웹 GUI 서빙
@@ -278,6 +279,41 @@ public class AppHttpServer {
                 String reason = root.path("reason").asText("이동 지연");
                 boolean success = appointmentService.notifyDelay(id, who, delayMinutes, reason);
                 sendJsonResponse(exchange, success ? 200 : 404, Map.of("success", success));
+            } else if ("addCourse".equalsIgnoreCase(action)) {
+                String id = root.path("id").asText();
+                JsonNode placeNode = root.path("place");
+                RecommendedPlace place = null;
+                if (placeNode.isObject()) {
+                    place = objectMapper.treeToValue(placeNode, RecommendedPlace.class);
+                } else if (root.has("placeName")) {
+                    place = placeRecommendService.findPlaceByName(root.get("placeName").asText()).orElse(null);
+                }
+                boolean success = appointmentService.addCoursePlace(id, place);
+                sendJsonResponse(exchange, success ? 200 : 400, Map.of(
+                        "success", success,
+                        "appointment", appointmentService.getAppointment(id).orElse(null)
+                ));
+            } else if ("removeCourse".equalsIgnoreCase(action)) {
+                String id = root.path("id").asText();
+                String placeName = root.path("placeName").asText();
+                boolean success = appointmentService.removeCoursePlace(id, placeName);
+                sendJsonResponse(exchange, success ? 200 : 400, Map.of(
+                        "success", success,
+                        "appointment", appointmentService.getAppointment(id).orElse(null)
+                ));
+            } else if ("clearCourse".equalsIgnoreCase(action)) {
+                String id = root.path("id").asText();
+                boolean success = appointmentService.clearCoursePlaces(id);
+                sendJsonResponse(exchange, success ? 200 : 400, Map.of("success", success));
+            } else if ("setMidpointAsDestination".equalsIgnoreCase(action)) {
+                String id = root.path("id").asText();
+                String destId = root.path("destinationId").asText();
+                String destName = root.path("destinationName").asText();
+                boolean success = appointmentService.updateAppointmentDestination(id, destId, destName);
+                sendJsonResponse(exchange, success ? 200 : 400, Map.of(
+                        "success", success,
+                        "appointment", appointmentService.getAppointment(id).orElse(null)
+                ));
             } else {
                 // create
                 String title = root.path("title").asText("실시간 버스 약속");
@@ -298,6 +334,25 @@ public class AppHttpServer {
         } else {
             sendResponse(exchange, 405, "Method Not Allowed");
         }
+    }
+
+    private void handleMidpoint(HttpExchange exchange) throws IOException {
+        if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+            sendResponse(exchange, 405, "Method Not Allowed");
+            return;
+        }
+        Map<String, String> query = parseQuery(exchange.getRequestURI().getRawQuery());
+        double myLat = parseDouble(query.get("myLat"), 35.13750); // 기본 경성대
+        double myLng = parseDouble(query.get("myLng"), 129.10050);
+        double friendLat = parseDouble(query.get("friendLat"), 35.15780); // 기본 서면
+        double friendLng = parseDouble(query.get("friendLng"), 129.05920);
+
+        MidpointResult result = appointmentService.findMidpointStation(
+                myLat, myLng, friendLat, friendLng,
+                dataManager.getAllStations(),
+                placeRecommendService
+        );
+        sendJsonResponse(exchange, 200, result);
     }
 
     private void handleRecommendations(HttpExchange exchange) throws IOException {

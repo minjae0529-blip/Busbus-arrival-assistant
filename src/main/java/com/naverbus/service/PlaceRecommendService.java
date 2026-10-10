@@ -174,11 +174,154 @@ public class PlaceRecommendService {
 
         placeDatabase.put("ST-BS-SMN", seomyeonPlaces); // 서면역
         placeDatabase.put("DEFAULT", seomyeonPlaces);
+
+        // BIFC / 전포역 주변 핫플레이스
+        List<RecommendedPlace> bifcPlaces = Arrays.asList(
+                new RecommendedPlace(
+                        "전포 베이커스 (감성 베이커리)",
+                        "카페 · 베이커리",
+                        "바삭한 크루아상과 페이스트리가 맛있는 전포 대표 빵집",
+                        "도보 3분",
+                        1, 4.7, 1850,
+                        "전포 빵지순례 1위",
+                        "20~40분 대기 추천",
+                        "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=700&auto=format&fit=crop&q=80",
+                        35.15120, 129.06650,
+                        "ALL",
+                        "부산 부산진구 전포대로209번길 15"
+                ),
+                new RecommendedPlace(
+                        "이재모피자 서면점 (명물 치즈피자)",
+                        "음식점 · 피자 맛집",
+                        "임실치즈가 듬뿍 들어간 부산 최고의 웨이팅 피자 성지",
+                        "도보 4분",
+                        2, 4.9, 6420,
+                        "부산 3대 맛집",
+                        "40~70분 식사 추천",
+                        "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=700&auto=format&fit=crop&q=80",
+                        35.15390, 129.06250,
+                        "FRIEND",
+                        "부산 부산진구 전포대로 209번길 21"
+                ),
+                new RecommendedPlace(
+                        "레드버튼 전포점 (보드게임 카페)",
+                        "놀거리 · 보드게임 카페",
+                        "친구와 함께 음료 마시며 즐기는 프라이빗 보드게임 룸",
+                        "도보 3분",
+                        3, 4.8, 2210,
+                        "친구 놀거리",
+                        "1~2시간 플레이 추천",
+                        "https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?w=700&auto=format&fit=crop&q=80",
+                        35.15280, 129.06520,
+                        "FRIEND",
+                        "부산 부산진구 동천로 69 4층"
+                )
+        );
+        placeDatabase.put("ST-BS-BIFC", bifcPlaces);
+
+        // 문현역 주변 핫플레이스
+        List<RecommendedPlace> munhyeonPlaces = Arrays.asList(
+                new RecommendedPlace(
+                        "이마트 문현점 & 엔터테인존",
+                        "복합문화 · 쇼핑/오락",
+                        "대형 쇼핑몰과 오락존, 푸드코트가 갖춰진 만남의 장소",
+                        "도보 2분",
+                        1, 4.5, 1420,
+                        "쇼핑&대기 최적",
+                        "20~50분 대기 추천",
+                        "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=700&auto=format&fit=crop&q=80",
+                        35.14120, 129.06580,
+                        "ALL",
+                        "부산 남구 전포대로 91"
+                ),
+                new RecommendedPlace(
+                        "문현 안동갈비 (로컬 맛집)",
+                        "음식점 · 숯불갈비",
+                        "달콤 짭조름한 마늘 양념 소갈비와 뚝배기 된장찌개 맛집",
+                        "도보 3분",
+                        2, 4.7, 1890,
+                        "문현 로컬 노포 1위",
+                        "40~70분 식사 추천",
+                        "https://images.unsplash.com/photo-1544025162-d76694265947?w=700&auto=format&fit=crop&q=80",
+                        35.13980, 129.06720,
+                        "FRIEND",
+                        "부산 남구 지게골로 7"
+                ),
+                new RecommendedPlace(
+                        "메가커피 BIFC점",
+                        "카페 · 테이크아웃",
+                        "합리적인 가격으로 시원한 음료와 디저트를 즐길 수 있는 카페",
+                        "도보 1분",
+                        3, 4.6, 920,
+                        "가성비 카페",
+                        "15~30분 대기 추천",
+                        "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=700&auto=format&fit=crop&q=80",
+                        35.14750, 129.06400,
+                        "SOLO",
+                        "부산 남구 문현금융로 40"
+                )
+        );
+        placeDatabase.put("ST-BS-MH", munhyeonPlaces);
+
+        // 대연역 / 경성대 주변 핫플레이스
+        List<RecommendedPlace> daeyeonPlaces = Arrays.asList(
+                new RecommendedPlace(
+                        "레드버튼 경성대점 (보드게임 카페)",
+                        "놀거리 · 보드게임 카페",
+                        "대학로 중심에서 친구들과 신나게 즐기는 프라이빗 룸 보드게임",
+                        "도보 2분",
+                        1, 4.8, 3120,
+                        "대학로 놀거리 1위",
+                        "1~2시간 플레이 추천",
+                        "https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?w=700&auto=format&fit=crop&q=80",
+                        35.13780, 129.10020,
+                        "FRIEND",
+                        "부산 남구 용소로 14 3층"
+                ),
+                new RecommendedPlace(
+                        "짱오락실 경성대점 (대형 아케이드)",
+                        "놀거리 · 오락실 & 인형뽑기",
+                        "최신 리듬게임, 사격, 다트, 인형뽑기가 가득한 엔터테인먼트 공간",
+                        "도보 3분",
+                        2, 4.7, 1950,
+                        "친구 내기 1위",
+                        "20~50분 플레이 추천",
+                        "https://images.unsplash.com/photo-1538388149542-5e24932d11a8?w=700&auto=format&fit=crop&q=80",
+                        35.13820, 129.10090,
+                        "FRIEND",
+                        "부산 남구 수영로 305"
+                ),
+                new RecommendedPlace(
+                        "롤링파스타 경성대부경대점",
+                        "음식점 · 캐주얼 양식",
+                        "백종원의 가성비 최고 파스타, 피자, 샐러드 맛집",
+                        "도보 2분",
+                        3, 4.6, 2580,
+                        "친구 모임 추천",
+                        "30~50분 식사 추천",
+                        "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=700&auto=format&fit=crop&q=80",
+                        35.13710, 129.10120,
+                        "ALL",
+                        "부산 남구 용소로 8 2층"
+                )
+        );
+        placeDatabase.put("ST-BS-DY", daeyeonPlaces);
+        placeDatabase.put("ST-BS-KSU", daeyeonPlaces);
     }
 
     public List<RecommendedPlace> getRecommendations(String destinationStationId, int earlyArrivalMinutes) {
-        List<RecommendedPlace> list = placeDatabase.getOrDefault(destinationStationId, placeDatabase.get("DEFAULT"));
-        // 조기 도착 시간에 맞춤 필터링 또는 전체 반환
-        return list;
+        return placeDatabase.getOrDefault(destinationStationId, placeDatabase.get("DEFAULT"));
+    }
+
+    public Optional<RecommendedPlace> findPlaceByName(String name) {
+        if (name == null || name.isBlank()) return Optional.empty();
+        for (List<RecommendedPlace> list : placeDatabase.values()) {
+            for (RecommendedPlace p : list) {
+                if (p.getName().equals(name)) {
+                    return Optional.of(p);
+                }
+            }
+        }
+        return Optional.empty();
     }
 }

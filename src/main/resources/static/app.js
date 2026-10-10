@@ -21,7 +21,12 @@ document.addEventListener('DOMContentLoaded', () => {
     recommendations: [],
     timerInterval: null,
     selectedDelayMinutes: 10,
-    selectedDelayReason: '버스를 눈앞에서 놓쳐서 다음 버스 탑승 중이에요!'
+    selectedDelayReason: '버스를 눈앞에서 놓쳐서 다음 버스 탑승 중이에요!',
+    midpointResult: null,
+    selectedMyOriginLat: 35.13550,
+    selectedMyOriginLng: 129.09200,
+    selectedFriendOriginLat: 35.15780,
+    selectedFriendOriginLng: 129.05920
   };
 
   // DOM Elements
@@ -67,6 +72,22 @@ document.addEventListener('DOMContentLoaded', () => {
     btnCloseDestModal: document.getElementById('btnCloseDestModal'),
     modalStationList: document.getElementById('modalStationList'),
     inputSearchStation: document.getElementById('inputSearchStation'),
+
+    // Midpoint Modal
+    midpointModal: document.getElementById('midpointModal'),
+    btnCloseMidpointModal: document.getElementById('btnCloseMidpointModal'),
+    btnCancelMidpoint: document.getElementById('btnCancelMidpoint'),
+    myOriginChips: document.getElementById('myOriginChips'),
+    friendOriginChips: document.getElementById('friendOriginChips'),
+    btnCalculateMidpoint: document.getElementById('btnCalculateMidpoint'),
+    midpointResultCard: document.getElementById('midpointResultCard'),
+    midpointStationName: document.getElementById('midpointStationName'),
+    midpointMyTime: document.getElementById('midpointMyTime'),
+    midpointFriendTime: document.getElementById('midpointFriendTime'),
+    midpointDiffTime: document.getElementById('midpointDiffTime'),
+    midpointReasonText: document.getElementById('midpointReasonText'),
+    midpointPlacesList: document.getElementById('midpointPlacesList'),
+    btnApplyMidpointToAppointment: document.getElementById('btnApplyMidpointToAppointment'),
 
     // Place Navigation Banner
     placeNavigationBanner: document.getElementById('placeNavigationBanner'),
@@ -315,6 +336,43 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
+    // 7-2. Midpoint Modal
+    if (el.btnCloseMidpointModal) el.btnCloseMidpointModal.addEventListener('click', closeMidpointModal);
+    if (el.btnCancelMidpoint) el.btnCancelMidpoint.addEventListener('click', closeMidpointModal);
+    if (el.midpointModal) {
+      el.midpointModal.addEventListener('click', (e) => {
+        if (e.target === el.midpointModal) closeMidpointModal();
+      });
+    }
+    if (el.myOriginChips) {
+      const chips = el.myOriginChips.querySelectorAll('.chip-station');
+      chips.forEach(chip => {
+        chip.addEventListener('click', () => {
+          chips.forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          state.selectedMyOriginLat = parseFloat(chip.dataset.lat);
+          state.selectedMyOriginLng = parseFloat(chip.dataset.lng);
+        });
+      });
+    }
+    if (el.friendOriginChips) {
+      const chips = el.friendOriginChips.querySelectorAll('.chip-station');
+      chips.forEach(chip => {
+        chip.addEventListener('click', () => {
+          chips.forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          state.selectedFriendOriginLat = parseFloat(chip.dataset.lat);
+          state.selectedFriendOriginLng = parseFloat(chip.dataset.lng);
+        });
+      });
+    }
+    if (el.btnCalculateMidpoint) {
+      el.btnCalculateMidpoint.addEventListener('click', calculateMidpoint);
+    }
+    if (el.btnApplyMidpointToAppointment) {
+      el.btnApplyMidpointToAppointment.addEventListener('click', applyMidpointToAppointment);
+    }
+
     // 8. Add Favorite
     if (el.btnAddFavorite) {
       el.btnAddFavorite.addEventListener('click', async () => {
@@ -381,6 +439,11 @@ document.addEventListener('DOMContentLoaded', () => {
       switchTab('all-arrivals');
     } else if (action === 'tab-appointments') {
       switchTab('appointments');
+    } else if (action === 'open-midpoint-modal') {
+      openMidpointModal();
+    } else if (action === 'tab-appointments-course') {
+      switchTab('appointments');
+      showToast('🗺️ 오늘의 약속 코스 타임라인입니다.');
     } else if (action === 'share-appointment-link') {
       copyAppointmentShareLink();
     } else if (action === 'open-delay-modal') {
@@ -768,7 +831,7 @@ document.addEventListener('DOMContentLoaded', () => {
     bindCardEvents();
   }
 
-  // 3. APPOINTMENTS TAB
+  // 3. APPOINTMENTS TAB (LOCATION SHARING & COURSE PLANNER)
   function renderAppointmentsTab() {
     if (el.fastestCard) el.fastestCard.style.display = 'none';
     const app = state.activeAppointment;
@@ -782,6 +845,27 @@ document.addEventListener('DOMContentLoaded', () => {
           </button>
         </div>
       `;
+      const btnCreate = document.getElementById('btnCreateSampleMeetup');
+      if (btnCreate) {
+        btnCreate.addEventListener('click', async () => {
+          await fetch('/api/appointments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: '서면 카페 & 점심 약속',
+              destinationId: 'ST-BS-SMN',
+              destinationName: '서면역(서면지하상가)',
+              inMinutes: 30,
+              creatorName: '민재(나)',
+              lat: 35.13750,
+              lng: 129.10050
+            })
+          });
+          await fetchAppointments();
+          renderAppointmentsTab();
+          drawMap();
+        });
+      }
       return;
     }
 
@@ -793,6 +877,62 @@ document.addEventListener('DOMContentLoaded', () => {
         <div style="font-size:11.5px; color:#9A3412; margin-top:2px;">"${app.delayReason}"</div>
       </div>
     ` : '';
+
+    const courses = app.coursePlaces || [];
+
+    const courseTimelineHtml = `
+      <div class="course-planner-section" id="coursePlannerSection">
+        <div class="course-header-row">
+          <span class="course-header-title">
+            🗺️ 오늘의 약속 놀거리 코스 (${courses.length}곳)
+          </span>
+          <div style="display:flex; gap:6px;">
+            ${courses.length > 0 ? '<button class="btn-cancel" id="btnClearCourseBtn" style="font-size:10.5px; padding:3px 7px;">비우기</button>' : ''}
+            <button class="btn-course-template" id="btnQuickPresetCourse" style="padding:3px 8px; font-size:10.5px;">✨ 추천 풀코스</button>
+          </div>
+        </div>
+
+        ${courses.length === 0 ? `
+          <div style="background:white; border:1px dashed #CBD5E1; border-radius:8px; padding:14px; text-align:center; font-size:12px; color:#64748B;">
+            아직 담긴 약속 코스가 없습니다.<br>
+            <span style="font-size:11px; color:#7C3AED; font-weight:700;">조기 도착 핫플 탭에서 [+ 코스 담기]를 누르거나 상단 [✨ 추천 풀코스]를 눌러보세요!</span>
+          </div>
+        ` : `
+          <div class="course-timeline-list">
+            ${courses.map((p, idx) => {
+              const connectorHtml = idx < courses.length - 1 ? `
+                <div class="course-between-connector">
+                  <span>↓</span>
+                  <span>도보 이동 (약 2~4분 소요)</span>
+                </div>
+              ` : '';
+
+              return `
+                <div class="course-step-card" data-name="${p.name}" style="cursor:pointer;" title="클릭 시 지도에서 위치 확인">
+                  <span class="course-order-badge">${idx + 1}차</span>
+                  <img src="${p.imageUrl}" alt="${p.name}" class="course-step-thumb" onerror="this.src='https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=700&q=80'">
+                  <div class="course-step-info">
+                    <div class="course-step-name">${p.name}</div>
+                    <div class="course-step-meta">
+                      <span style="color:#7C3AED; font-weight:700;">${p.category}</span>
+                      <span>★ ${p.googleRating}</span>
+                      <span>${p.walkMinutes}</span>
+                    </div>
+                  </div>
+                  <button class="btn-remove-course-item" data-name="${p.name}" title="코스에서 제외">&times;</button>
+                </div>
+                ${connectorHtml}
+              `;
+            }).join('')}
+          </div>
+        `}
+
+        <div class="course-actions-bar">
+          <button class="btn-course-template" id="btnAddMoreToCourse">+ 핫플 둘러보고 더 담기</button>
+          <button class="btn-course-template" id="btnOpenMidpointFromApp" style="background:#FEF3C7; border-color:#FDE68A; color:#92400E;">🧭 나와 친구 중간역 찾기</button>
+        </div>
+      </div>
+    `;
 
     el.busListContainer.innerHTML = `
       <div class="appointment-card">
@@ -807,7 +947,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ${delayBadgeHtml}
 
         <div style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">
-          <strong>장소:</strong> ${app.destinationName} &nbsp;|&nbsp; <strong>예정 시각:</strong> 25분 뒤 (12:30)
+          <strong>만남 장소:</strong> <span style="color:#2563EB; font-weight:800;">${app.destinationName}</span> &nbsp;|&nbsp; <strong>예정 시각:</strong> 25분 뒤 (12:30)
         </div>
 
         <div class="appointment-members">
@@ -827,9 +967,11 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </div>
 
-        <div style="display:flex; justify-content:space-between; align-items:center;">
+        ${courseTimelineHtml}
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
           <span style="font-size:11px; color:#2563EB; font-weight:700;">
-            약속 시간 동안에만 서로의 GPS가 지도에 실시간 표시됩니다.
+            약속 시간 동안에만 서로의 GPS와 코스 경로가 지도에 실시간 표시됩니다.
           </span>
         </div>
       </div>
@@ -840,9 +982,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const btnCardDelay = document.getElementById('btnCardDelayLink');
     if (btnCardDelay) btnCardDelay.addEventListener('click', openDelayModal);
+
+    const btnAddMore = document.getElementById('btnAddMoreToCourse');
+    if (btnAddMore) btnAddMore.addEventListener('click', () => switchTab('recommendations'));
+
+    const btnOpenMid = document.getElementById('btnOpenMidpointFromApp');
+    if (btnOpenMid) btnOpenMid.addEventListener('click', openMidpointModal);
+
+    const btnPreset = document.getElementById('btnQuickPresetCourse');
+    if (btnPreset) btnPreset.addEventListener('click', applyPresetCourse);
+
+    const btnClearCourse = document.getElementById('btnClearCourseBtn');
+    if (btnClearCourse) btnClearCourse.addEventListener('click', clearCoursePlaces);
+
+    const removeButtons = el.busListContainer.querySelectorAll('.btn-remove-course-item');
+    removeButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const placeName = btn.dataset.name;
+        removePlaceFromCourse(placeName);
+      });
+    });
+
+    const stepCards = el.busListContainer.querySelectorAll('.course-step-card');
+    stepCards.forEach(card => {
+      card.addEventListener('click', () => {
+        const placeName = card.dataset.name;
+        const targetPlace = courses.find(p => p.name === placeName);
+        if (targetPlace) selectPlaceForNavigation(targetPlace);
+      });
+    });
   }
 
-  // 4. RECOMMENDATIONS TAB (RICH PHOTOS & THEME FILTERS & NAVIGATION)
+  // 4. RECOMMENDATIONS TAB (RICH PHOTOS & COURSE BUILDER & NAVIGATION)
   function renderRecommendationsTab() {
     if (el.fastestCard) el.fastestCard.style.display = 'none';
     const allList = state.recommendations || [];
@@ -852,7 +1024,6 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Filter Logic
     const currentFilter = state.selectedPlaceFilter;
     const filteredList = allList.filter(item => {
       if (currentFilter === 'ALL') return true;
@@ -864,13 +1035,24 @@ document.addEventListener('DOMContentLoaded', () => {
       return true;
     });
 
+    const currentCourseNames = (state.activeAppointment?.coursePlaces || []).map(c => c.name);
+
     el.busListContainer.innerHTML = `
       <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:12px; padding:12px 14px; margin-bottom:10px;">
-        <div style="font-weight:800; font-size:13.5px; color:#1E40AF; margin-bottom:2px;">
-          ✨ 서면역 약속 전 핫플레이스 (${filteredList.length}곳)
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-weight:800; font-size:13.5px; color:#1E40AF; margin-bottom:2px;">
+              ✨ 약속 전/후 핫플레이스 & 놀거리 (${filteredList.length}곳)
+            </div>
+            <div style="font-size:11.5px; color:#1E3A8A;">
+              카드를 클릭하면 <strong>도보 길안내선</strong>이 표시되며, <strong>[+ 코스 담기]</strong>로 약속 코스에 추가할 수 있습니다.
+            </div>
+          </div>
         </div>
-        <div style="font-size:11.5px; color:#1E3A8A;">
-          카드를 클릭하면 <strong>현재 내 위치에서의 거리와 도보 길안내선</strong>이 지도에 표시됩니다.
+        <div style="margin-top:8px;">
+          <button class="btn-course-template" id="btnPresetFromRec" style="width:100%; font-size:11.5px; padding:6px 12px;">
+            ✨ 인기 1~3차 놀거리 풀코스 바로 담기 (맛집 ➔ 카페 ➔ 보드게임)
+          </button>
         </div>
       </div>
 
@@ -887,12 +1069,12 @@ document.addEventListener('DOMContentLoaded', () => {
       <!-- PLACES GRID -->
       <div class="places-grid-container">
         ${filteredList.map((item, idx) => {
-          // Calculate Real Distance from current GPS
           const distKm = (item.latitude && item.longitude)
             ? calculateDistanceKm(state.currentLat, state.currentLng, item.latitude, item.longitude)
             : 0.5;
           const distText = distKm >= 1 ? `${distKm.toFixed(1)}km` : `${Math.round(distKm * 1000)}m`;
           const walkMins = Math.max(1, Math.round((distKm * 1000) / 67));
+          const isAdded = currentCourseNames.includes(item.name);
 
           return `
             <div class="place-card-v2" data-name="${item.name}" style="cursor:pointer;">
@@ -914,9 +1096,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="place-star-rating">★ ${item.googleRating}</span>
                     <span style="margin-left:4px;">리뷰 ${item.reviewCount}건</span>
                   </div>
-                  <span style="color:#2563EB; font-weight:800; font-size:11.5px;">
-                    🚶 도보 약 ${walkMins}분 길안내 보기 →
-                  </span>
+                  <div style="display:flex; gap:6px; align-items:center;">
+                    <span style="color:#2563EB; font-weight:800; font-size:11.5px;">
+                      🚶 도보 ${walkMins}분 →
+                    </span>
+                    <button class="btn-add-course ${isAdded ? 'added' : ''}" data-name="${item.name}">
+                      ${isAdded ? '✓ 코스 담김' : '+ 코스 담기'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -934,17 +1121,214 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
+    const btnPresetTop = document.getElementById('btnPresetFromRec');
+    if (btnPresetTop) {
+      btnPresetTop.addEventListener('click', applyPresetCourse);
+    }
+
     // Place Cards Click Event (Walking Navigation & Map Pin)
     const placeCards = el.busListContainer.querySelectorAll('.place-card-v2');
     placeCards.forEach(card => {
-      card.addEventListener('click', () => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-add-course')) return; // ignore click on button
         const placeName = card.dataset.name;
         const targetPlace = allList.find(p => p.name === placeName);
-        if (targetPlace) {
-          selectPlaceForNavigation(targetPlace);
-        }
+        if (targetPlace) selectPlaceForNavigation(targetPlace);
       });
     });
+
+    // Add Course Buttons
+    const addCourseBtns = el.busListContainer.querySelectorAll('.btn-add-course');
+    addCourseBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const placeName = btn.dataset.name;
+        const targetPlace = allList.find(p => p.name === placeName);
+        if (targetPlace) addPlaceToCourse(targetPlace);
+      });
+    });
+  }
+
+  // COURSE & MIDPOINT HELPER FUNCTIONS
+  async function addPlaceToCourse(place) {
+    if (!state.activeAppointment) {
+      showToast('활성화된 약속이 없습니다.');
+      return;
+    }
+    try {
+      const res = await fetch('/api/appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'addCourse',
+          id: state.activeAppointment.id,
+          place: place
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`🎉 "${place.name}"이(가) 약속 코스에 추가되었습니다!`);
+        await fetchAppointments();
+        renderCurrentTab();
+        drawMap();
+      } else {
+        showToast('이미 코스에 등록된 장소입니다.');
+      }
+    } catch (e) {
+      console.error(e);
+      showToast('코스 추가 중 오류가 발생했습니다.');
+    }
+  }
+
+  async function removePlaceFromCourse(placeName) {
+    if (!state.activeAppointment) return;
+    try {
+      await fetch('/api/appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'removeCourse',
+          id: state.activeAppointment.id,
+          placeName: placeName
+        })
+      });
+      showToast(`코스에서 삭제되었습니다.`);
+      await fetchAppointments();
+      renderCurrentTab();
+      drawMap();
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function clearCoursePlaces() {
+    if (!state.activeAppointment) return;
+    try {
+      await fetch('/api/appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'clearCourse',
+          id: state.activeAppointment.id
+        })
+      });
+      showToast('약속 코스가 초기화되었습니다.');
+      await fetchAppointments();
+      renderCurrentTab();
+      drawMap();
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function applyPresetCourse() {
+    if (!state.activeAppointment) return;
+    const all = state.recommendations || [];
+    const p1 = all.find(p => p.name.includes('칸다소바')) || all[0];
+    const p2 = all.find(p => p.name.includes('블랙업')) || all[1];
+    const p3 = all.find(p => p.name.includes('레드버튼')) || all[2];
+
+    const toAdd = [p1, p2, p3].filter(Boolean);
+    for (const p of toAdd) {
+      await fetch('/api/appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'addCourse',
+          id: state.activeAppointment.id,
+          place: p
+        })
+      });
+    }
+    await fetchAppointments();
+    renderCurrentTab();
+    drawMap();
+    showToast('✨ 1차 맛집 ➔ 2차 카페 ➔ 3차 보드게임 풀코스가 담겼습니다!');
+  }
+
+  function openMidpointModal() {
+    if (el.midpointModal) {
+      el.midpointModal.classList.add('is-open');
+    }
+  }
+
+  function closeMidpointModal() {
+    if (el.midpointModal) {
+      el.midpointModal.classList.remove('is-open');
+    }
+  }
+
+  async function calculateMidpoint() {
+    try {
+      const url = `/api/meetup/midpoint?myLat=${state.selectedMyOriginLat}&myLng=${state.selectedMyOriginLng}&friendLat=${state.selectedFriendOriginLat}&friendLng=${state.selectedFriendOriginLng}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      state.midpointResult = data;
+
+      if (el.midpointStationName) el.midpointStationName.textContent = data.stationName;
+      if (el.midpointMyTime) {
+        el.midpointMyTime.textContent = `약 ${data.myEstimatedMinutes}분 (${data.myDistanceMeters >= 1000 ? (data.myDistanceMeters / 1000).toFixed(1) + 'km' : Math.round(data.myDistanceMeters) + 'm'})`;
+      }
+      if (el.midpointFriendTime) {
+        el.midpointFriendTime.textContent = `약 ${data.friendEstimatedMinutes}분 (${data.friendDistanceMeters >= 1000 ? (data.friendDistanceMeters / 1000).toFixed(1) + 'km' : Math.round(data.friendDistanceMeters) + 'm'})`;
+      }
+      if (el.midpointDiffTime) {
+        el.midpointDiffTime.textContent = `단 ${data.timeDifferenceMinutes}분 차이 (공평)`;
+      }
+      if (el.midpointReasonText) el.midpointReasonText.textContent = data.recommendationReason;
+
+      if (el.midpointPlacesList) {
+        if (data.nearbyHotplaces && data.nearbyHotplaces.length > 0) {
+          el.midpointPlacesList.innerHTML = data.nearbyHotplaces.slice(0, 3).map(p => `
+            <div class="midpoint-place-mini-item">
+              <img src="${p.imageUrl}" alt="${p.name}" class="midpoint-mini-thumb" onerror="this.src='https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=700&q=80'">
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:12px; font-weight:700; color:#0F172A; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</div>
+                <div style="font-size:10.5px; color:#64748B;">${p.category} · ★ ${p.googleRating} · ${p.walkMinutes}</div>
+              </div>
+            </div>
+          `).join('');
+        } else {
+          el.midpointPlacesList.innerHTML = '<div style="font-size:11px; color:#94A3B8;">주변 추천 장소를 준비 중입니다.</div>';
+        }
+      }
+
+      if (el.midpointResultCard) el.midpointResultCard.style.display = 'block';
+
+      if (leafletMap) {
+        leafletMap.flyTo([data.latitude, data.longitude], 15, { duration: 1.2 });
+      }
+      drawMap();
+      showToast(`🧭 최적 중간 만남역 [${data.stationName}]이 산출되었습니다!`);
+    } catch (err) {
+      console.error(err);
+      showToast('중간 지점 계산 중 오류가 발생했습니다.');
+    }
+  }
+
+  async function applyMidpointToAppointment() {
+    if (!state.midpointResult || !state.activeAppointment) return;
+    const data = state.midpointResult;
+    try {
+      await fetch('/api/appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'setMidpointAsDestination',
+          id: state.activeAppointment.id,
+          destinationId: data.stationId,
+          destinationName: data.stationName
+        })
+      });
+      await fetchAppointments();
+      closeMidpointModal();
+      switchTab('appointments');
+      drawMap();
+      showToast(`✓ 약속 장소가 [${data.stationName}]으로 확정되었습니다!`);
+    } catch (err) {
+      console.error(err);
+      showToast('약속 장소 변경 중 오류가 발생했습니다.');
+    }
   }
 
   // SELECT PLACE FOR WALKING NAVIGATION
@@ -1517,6 +1901,56 @@ document.addEventListener('DOMContentLoaded', () => {
           dashArray: '8, 8',
           smoothFactor: 1
         }).addTo(leafletMap);
+      }
+    }
+
+    // 5. MIDPOINT RECOMMENDATION BEACON (골드 중간역 마커)
+    if (state.midpointResult && hotplaceMarkerGroup) {
+      const mid = state.midpointResult;
+      const midIcon = L.divIcon({
+        className: 'custom-station-wrapper',
+        html: `<div class="leaflet-midpoint-pin" title="${mid.stationName}"></div>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      });
+      const midMarker = L.marker([mid.latitude, mid.longitude], { icon: midIcon }).addTo(hotplaceMarkerGroup);
+      midMarker.bindTooltip(`<b>⭐ 최적 중간 만남역: ${mid.stationName} (편차 ${mid.timeDifferenceMinutes}분)</b>`, {
+        permanent: true,
+        direction: 'top',
+        offset: [0, -12],
+        className: 'midpoint-tooltip'
+      });
+    }
+
+    // 6. APPOINTMENT COURSE PLACES POLYLINE & STEP BADGES
+    if (state.activeAppointment && state.activeAppointment.coursePlaces && state.activeAppointment.coursePlaces.length > 0 && hotplaceMarkerGroup) {
+      const courses = state.activeAppointment.coursePlaces;
+      const courseCoords = [];
+      courses.forEach((c, idx) => {
+        if (c.latitude && c.longitude) {
+          courseCoords.push([c.latitude, c.longitude]);
+          const stepIcon = L.divIcon({
+            className: 'custom-station-wrapper',
+            html: `<div style="background:#7C3AED; color:white; font-size:10px; font-weight:800; border:2px solid white; border-radius:10px; padding:2px 6px; box-shadow:0 2px 6px rgba(0,0,0,0.3);">${idx + 1}차</div>`,
+            iconSize: [36, 20],
+            iconAnchor: [18, 10]
+          });
+          const m = L.marker([c.latitude, c.longitude], { icon: stepIcon }).addTo(hotplaceMarkerGroup);
+          m.bindTooltip(`<b>[${idx + 1}차] ${c.name}</b>`, {
+            permanent: false,
+            direction: 'top',
+            offset: [0, -10]
+          });
+        }
+      });
+
+      if (courseCoords.length > 1) {
+        L.polyline(courseCoords, {
+          color: '#7C3AED',
+          weight: 4,
+          opacity: 0.85,
+          dashArray: '6, 6'
+        }).addTo(hotplaceMarkerGroup);
       }
     }
   }

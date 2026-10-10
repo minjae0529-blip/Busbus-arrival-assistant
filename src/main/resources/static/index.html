@@ -306,13 +306,27 @@
       </div>
     </div>
 
-    <!-- SECTION 2: 약속 & 지연 알림 -->
-    <div class="drawer-section-label">약속 & 지연 알림</div>
+    <!-- SECTION 2: 약속 & 지연 알림 & 코스 -->
+    <div class="drawer-section-label">약속 · 코스 · 중간지점</div>
     <div class="drawer-nav-item" data-action="tab-appointments">
       <div class="drawer-icon-box icon-meet">🤝</div>
       <div class="drawer-item-text">
         <div class="drawer-item-title">실시간 약속 위치 공유</div>
         <div class="drawer-item-desc">친구와 서로의 실시간 GPS 위치 지도 확인</div>
+      </div>
+    </div>
+    <div class="drawer-nav-item" data-action="open-midpoint-modal">
+      <div class="drawer-icon-box" style="background:#FEF3C7; color:#D97706;">🧭</div>
+      <div class="drawer-item-text">
+        <div class="drawer-item-title">나와 친구의 중간역 찾기</div>
+        <div class="drawer-item-desc">시간 편차 최소화 알고리즘 기반 최적 중간 만남역</div>
+      </div>
+    </div>
+    <div class="drawer-nav-item" data-action="tab-appointments-course">
+      <div class="drawer-icon-box" style="background:#EDE9FE; color:#7C3AED;">🗺️</div>
+      <div class="drawer-item-text">
+        <div class="drawer-item-title">약속 놀거리 코스 플래너</div>
+        <div class="drawer-item-desc">1차(식사) ➔ 2차(카페) ➔ 3차(놀거리) 풀코스 빌더</div>
       </div>
     </div>
     <div class="drawer-nav-item" data-action="share-appointment-link">
@@ -332,8 +346,8 @@
     <div class="drawer-nav-item" data-action="tab-recommendations">
       <div class="drawer-icon-box icon-hotplace">☕</div>
       <div class="drawer-item-text">
-        <div class="drawer-item-title">조기 도착 추천 핫플 (사진 갤러리)</div>
-        <div class="drawer-item-desc">약속 전 들르기 좋은 서면 카페, 맛집, 서점 사진</div>
+        <div class="drawer-item-title">조기 도착 & 놀거리 추천 (사진 갤러리)</div>
+        <div class="drawer-item-desc">약속 전 킬링타임 & 친구와 함께할 핫플레이스</div>
       </div>
     </div>
 
@@ -438,6 +452,84 @@
     <input type="text" id="inputSearchStation" class="clean-input" placeholder="정류소 또는 지하철역 검색..." style="width: 100%; margin-bottom: 12px;">
 
     <div class="station-options-list" id="modalStationList"></div>
+  </div>
+</div>
+
+<!-- 8. MODAL: MIDPOINT FINDER (나와 친구의 중간역 찾기) -->
+<div class="dialog-overlay" id="midpointModal">
+  <div class="dialog-card" style="max-width: 440px;">
+    <div class="dialog-header">
+      <h3 class="dialog-title">🧭 나와 친구의 중간역 찾기</h3>
+      <button class="dialog-close" id="btnCloseMidpointModal">&times;</button>
+    </div>
+    <p class="dialog-description">
+      GitHub 오픈소스 편차 최소화 알고리즘으로 양쪽 모두 이동 시간이 가장 공평한 중간 만남 지하철역을 찾아드립니다.
+    </p>
+
+    <!-- 내 출발지 -->
+    <div class="form-group">
+      <label class="form-label">📍 내 출발지</label>
+      <div class="midpoint-station-chips" id="myOriginChips">
+        <button type="button" class="chip-station active" data-name="대연역" data-lat="35.13550" data-lng="129.09200">대연역</button>
+        <button type="button" class="chip-station" data-name="경성대역" data-lat="35.13750" data-lng="129.10050">경성대역</button>
+        <button type="button" class="chip-station" data-name="남천역" data-lat="35.14150" data-lng="129.10850">남천역</button>
+        <button type="button" class="chip-station" data-name="광안역" data-lat="35.15250" data-lng="129.11550">광안역</button>
+      </div>
+    </div>
+
+    <!-- 친구 출발지 -->
+    <div class="form-group">
+      <label class="form-label">🤝 친구 출발지</label>
+      <div class="midpoint-station-chips" id="friendOriginChips">
+        <button type="button" class="chip-station active" data-name="서면역" data-lat="35.15780" data-lng="129.05920">서면역</button>
+        <button type="button" class="chip-station" data-name="광안역" data-lat="35.15250" data-lng="129.11550">광안역</button>
+        <button type="button" class="chip-station" data-name="수영역" data-lat="35.16100" data-lng="129.11650">수영역</button>
+        <button type="button" class="chip-station" data-name="BIFC역" data-lat="35.14800" data-lng="129.06450">BIFC역</button>
+      </div>
+    </div>
+
+    <button class="btn-primary-action" id="btnCalculateMidpoint" style="width: 100%; padding: 10px; margin-bottom: 12px; font-weight: 700;">
+      ⚡ 최적의 중간 만남 장소 계산하기
+    </button>
+
+    <!-- 계산 결과 박스 -->
+    <div id="midpointResultCard" style="display: none; background: #F8FAFC; border: 1.5px solid #CBD5E1; border-radius: 12px; padding: 12px; margin-bottom: 12px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <span class="midpoint-badge">⭐ 추천 중간역</span>
+        <strong id="midpointStationName" style="font-size: 15px; color: #0F172A;">문현역</strong>
+      </div>
+      
+      <div class="midpoint-stats-grid">
+        <div class="midpoint-stat-box">
+          <span class="stat-label">나의 소요 시간</span>
+          <span class="stat-value" id="midpointMyTime">약 8분</span>
+        </div>
+        <div class="midpoint-stat-box">
+          <span class="stat-label">친구 소요 시간</span>
+          <span class="stat-value" id="midpointFriendTime">약 9분</span>
+        </div>
+        <div class="midpoint-stat-box highlight">
+          <span class="stat-label">시간 편차</span>
+          <span class="stat-value" id="midpointDiffTime" style="color: #2563EB;">단 1분 차이</span>
+        </div>
+      </div>
+
+      <p id="midpointReasonText" style="font-size: 11px; color: #475569; margin: 8px 0 10px; line-height: 1.4;"></p>
+
+      <!-- 중간역 주변 추천 핫플 -->
+      <div style="font-size: 11.5px; font-weight: 700; color: #1E293B; margin-bottom: 6px;">
+        🎡 중간역 인근 추천 놀거리 & 맛집
+      </div>
+      <div id="midpointPlacesList" class="midpoint-places-mini-list"></div>
+
+      <button class="btn-primary-action" id="btnApplyMidpointToAppointment" style="width: 100%; margin-top: 10px; font-size: 12px; background: #16A34A;">
+        ✓ 이 중간역을 우리 약속 장소로 확정
+      </button>
+    </div>
+
+    <div class="modal-actions-row">
+      <button class="btn-cancel" id="btnCancelMidpoint">닫기</button>
+    </div>
   </div>
 </div>
 

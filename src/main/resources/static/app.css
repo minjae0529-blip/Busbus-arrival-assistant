@@ -1767,3 +1767,299 @@ body, html {
   padding: 3px 8px !important;
   box-shadow: 0 3px 8px rgba(0,0,0,0.25) !important;
 }
+
+/* ========================================================
+   12. MEET COURSE PLANNER & TIMELINE STYLES
+   ======================================================== */
+.course-planner-section {
+  margin-top: 14px;
+  background: #FAF5FF;
+  border: 1px solid #E9D5FF;
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+
+.course-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.course-header-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #6B21A8;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.course-timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.course-step-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.course-step-card:hover {
+  border-color: #A855F7;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(168, 85, 247, 0.15);
+}
+
+.course-order-badge {
+  background: #7C3AED;
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 7px;
+  border-radius: var(--radius-xs);
+  flex-shrink: 0;
+}
+
+.course-step-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.course-step-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.course-step-name {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.course-step-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.btn-remove-course-item {
+  background: #FEE2E2;
+  color: #DC2626;
+  border: none;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.btn-remove-course-item:hover {
+  background: #EF4444;
+  color: white;
+}
+
+.course-between-connector {
+  display: flex;
+  align-items: center;
+  padding-left: 20px;
+  gap: 6px;
+  font-size: 10.5px;
+  color: #9333EA;
+  font-weight: 700;
+}
+
+.course-actions-bar {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.btn-course-template {
+  background: #F3E8FF;
+  border: 1px solid #D8B4FE;
+  color: #7E22CE;
+  font-size: 11.5px;
+  font-weight: 800;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  flex: 1;
+}
+
+.btn-course-template:hover {
+  background: #E9D5FF;
+}
+
+/* Add to Course Button on Place Card */
+.btn-add-course {
+  background: #7C3AED;
+  color: white;
+  border: none;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.btn-add-course:hover {
+  background: #6D28D9;
+}
+
+.btn-add-course.added {
+  background: #E2E8F0;
+  color: #64748B;
+  cursor: default;
+}
+
+/* ========================================================
+   13. MIDPOINT FINDER & STATS STYLES
+   ======================================================== */
+.midpoint-station-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.chip-station {
+  background: #F1F5F9;
+  border: 1px solid #CBD5E1;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 11px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chip-station.active {
+  background: #2563EB;
+  border-color: #2563EB;
+  color: white;
+}
+
+.midpoint-badge {
+  background: #FEF3C7;
+  color: #B45309;
+  border: 1px solid #FDE68A;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: var(--radius-xs);
+}
+
+.midpoint-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.midpoint-stat-box {
+  background: white;
+  border: 1px solid #E2E8F0;
+  border-radius: var(--radius-xs);
+  padding: 8px 6px;
+  text-align: center;
+}
+
+.midpoint-stat-box.highlight {
+  background: #EFF6FF;
+  border-color: #BFDBFE;
+}
+
+.stat-label {
+  display: block;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.stat-value {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-top: 2px;
+}
+
+.midpoint-places-mini-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.midpoint-place-mini-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.midpoint-mini-thumb {
+  width: 34px;
+  height: 34px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+/* Midpoint Station Leaflet Marker */
+.leaflet-midpoint-pin {
+  width: 24px;
+  height: 24px;
+  background-color: #F59E0B;
+  border: 3.5px solid white;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.4), 0 4px 10px rgba(0,0,0,0.3);
+  animation: pulse-midpoint 1.6s infinite;
+}
+
+@keyframes pulse-midpoint {
+  0% { transform: scale(1); box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.4); }
+  50% { transform: scale(1.15); box-shadow: 0 0 0 8px rgba(245, 158, 11, 0.15); }
+  100% { transform: scale(1); box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.4); }
+}
+
+.midpoint-tooltip {
+  background: rgba(245, 158, 11, 0.95) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 6px !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  padding: 3px 8px !important;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.25) !important;
+}
