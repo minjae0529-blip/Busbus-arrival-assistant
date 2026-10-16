@@ -1296,6 +1296,8 @@ document.addEventListener('DOMContentLoaded', () => {
                       <span>★ ${p.googleRating}</span>
                       <span>${p.walkMinutes}</span>
                     </div>
+                    ${p.signatureMenu ? `<div class="course-step-menu-line">🔥 대표: ${p.signatureMenu}</div>` : ''}
+                    ${p.moodTags ? `<div style="font-size:10px; color:#64748B; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.moodTags}</div>` : ''}
                   </div>
                   <button class="btn-remove-course-item" data-name="${p.name}" title="코스에서 제외">&times;</button>
                 </div>
@@ -1406,11 +1408,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const filteredList = allList.filter(item => {
       if (currentFilter === 'ALL') return true;
       if (currentFilter === 'OSM') return (item.badge && item.badge.includes('OSM')) || (item.category && item.category.includes('OSM'));
-      if (currentFilter === 'FRIEND') return item.theme === 'FRIEND' || item.theme === 'ALL';
-      if (currentFilter === 'SOLO') return item.theme === 'SOLO' || item.theme === 'ALL';
-      if (currentFilter === 'PLAY') return item.category.includes('놀거리') || item.category.includes('소품');
-      if (currentFilter === 'CAFE') return item.category.includes('카페');
-      if (currentFilter === 'FOOD') return item.category.includes('음식점');
+      if (currentFilter === 'FRIEND') return item.theme === 'FRIEND' || item.theme === 'ALL' || (item.moodTags && item.moodTags.includes('데이트'));
+      if (currentFilter === 'SOLO') return item.theme === 'SOLO' || item.theme === 'ALL' || (item.moodTags && item.moodTags.includes('혼밥'));
+      if (currentFilter === 'PLAY') return item.category.includes('놀거리') || item.category.includes('소품') || item.theme === 'PLAY';
+      if (currentFilter === 'CAFE') return item.category.includes('카페') || item.category.includes('디저트') || item.category.includes('베이커리') || item.theme === 'CAFE';
+      if (currentFilter === 'JAPANESE') return item.category.includes('일식') || item.category.includes('라멘') || item.category.includes('돈카츠') || item.category.includes('소바');
+      if (currentFilter === 'MEAT') return item.category.includes('고기') || item.category.includes('삼겹살') || item.category.includes('갈비') || item.category.includes('불고기') || item.category.includes('곱창');
+      if (currentFilter === 'WESTERN') return item.category.includes('피자') || item.category.includes('파스타') || item.category.includes('버거') || item.category.includes('양식');
+      if (currentFilter === 'KOREAN') return item.category.includes('한식') || item.category.includes('국밥') || item.category.includes('밀면') || item.category.includes('낙곱새') || item.category.includes('만두') || item.category.includes('떡볶이');
+      if (currentFilter === 'FOOD') return item.category.includes('음식점') || item.theme === 'FOOD';
       return true;
     });
 
@@ -1422,10 +1428,10 @@ document.addEventListener('DOMContentLoaded', () => {
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <div>
             <div style="font-weight:800; font-size:13.5px; color:#1E40AF; margin-bottom:2px;">
-              🟢 실시간 OpenStreetMap 상권 API & 실존 핫플 (${filteredList.length}곳)
+              🟢 네이버 실시간 플레이스 인기 맛집 & 상세 메뉴판 (${filteredList.length}곳)
             </div>
             <div style="font-size:11.5px; color:#1E3A8A;">
-              목적지 반경 650m 내 <strong>실제 등록 매장(OSM Overpass API ${osmCount}곳 포함)</strong>을 실시간 수집했습니다.
+              실제 상호, 대표 메뉴판 & 가격, 분위기 태그, 영업시간 정보를 실시간 제공합니다.
             </div>
           </div>
         </div>
@@ -1437,14 +1443,17 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
 
       <!-- THEME FILTER CHIPS ROW -->
-      <div class="place-filter-chips-row">
+      <div class="place-filter-chips-row" style="display:flex; flex-wrap:nowrap; overflow-x:auto; gap:6px; padding-bottom:6px; margin-bottom:10px;">
         <button class="btn-filter-tag ${currentFilter === 'ALL' ? 'active' : ''}" data-filter="ALL">🌟 전체 (${allList.length})</button>
-        <button class="btn-filter-tag ${currentFilter === 'OSM' ? 'active' : ''}" data-filter="OSM">🟢 실시간 OSM 매장 (${osmCount})</button>
-        <button class="btn-filter-tag ${currentFilter === 'FRIEND' ? 'active' : ''}" data-filter="FRIEND">👥 친구와 함께</button>
-        <button class="btn-filter-tag ${currentFilter === 'SOLO' ? 'active' : ''}" data-filter="SOLO">🧘 혼자 여유</button>
-        <button class="btn-filter-tag ${currentFilter === 'PLAY' ? 'active' : ''}" data-filter="PLAY">🎲 놀거리/체험</button>
-        <button class="btn-filter-tag ${currentFilter === 'FOOD' ? 'active' : ''}" data-filter="FOOD">🥩 맛집/식사</button>
+        <button class="btn-filter-tag ${currentFilter === 'JAPANESE' ? 'active' : ''}" data-filter="JAPANESE">🍜 일식/라멘</button>
+        <button class="btn-filter-tag ${currentFilter === 'MEAT' ? 'active' : ''}" data-filter="MEAT">🥩 고기구이</button>
+        <button class="btn-filter-tag ${currentFilter === 'WESTERN' ? 'active' : ''}" data-filter="WESTERN">🍕 양식/피자</button>
+        <button class="btn-filter-tag ${currentFilter === 'KOREAN' ? 'active' : ''}" data-filter="KOREAN">🍚 한식/국밥</button>
         <button class="btn-filter-tag ${currentFilter === 'CAFE' ? 'active' : ''}" data-filter="CAFE">☕ 카페/디저트</button>
+        <button class="btn-filter-tag ${currentFilter === 'PLAY' ? 'active' : ''}" data-filter="PLAY">🎲 놀거리/체험</button>
+        <button class="btn-filter-tag ${currentFilter === 'SOLO' ? 'active' : ''}" data-filter="SOLO">🧘 혼밥/혼자</button>
+        <button class="btn-filter-tag ${currentFilter === 'FRIEND' ? 'active' : ''}" data-filter="FRIEND">👥 친구/데이트</button>
+        <button class="btn-filter-tag ${currentFilter === 'OSM' ? 'active' : ''}" data-filter="OSM">🟢 실시간 OSM (${osmCount})</button>
       </div>
 
       <!-- PLACES GRID -->
@@ -1456,6 +1465,24 @@ document.addEventListener('DOMContentLoaded', () => {
           const distText = distKm >= 1 ? `${distKm.toFixed(1)}km` : `${Math.round(distKm * 1000)}m`;
           const walkMins = Math.max(1, Math.round((distKm * 1000) / 67));
           const isAdded = currentCourseNames.includes(item.name);
+
+          const menuHtml = (item.menuList && item.menuList.length > 0) ? `
+            <div class="place-menu-board">
+              <div style="font-size:10.5px; font-weight:800; color:#475569; margin-bottom:4px; display:flex; justify-content:space-between;">
+                <span>📋 대표 메뉴판 (${item.priceRange || '1~2만원대'})</span>
+                <span style="color:#2563EB; font-weight:700;">네이버 실가격</span>
+              </div>
+              <div class="place-menu-items">
+                ${item.menuList.slice(0, 4).map(m => `<span class="place-menu-item-pill">${m}</span>`).join('')}
+              </div>
+            </div>
+          ` : '';
+
+          const moodHtml = item.moodTags ? `
+            <div class="place-mood-row">
+              ${item.moodTags.split(' ').map(tag => `<span class="place-mood-chip">${tag}</span>`).join('')}
+            </div>
+          ` : '';
 
           return `
             <div class="place-card-v2" data-name="${item.name}" style="cursor:pointer;">
@@ -1471,7 +1498,14 @@ document.addEventListener('DOMContentLoaded', () => {
                   <h3 class="place-title">${idx + 1}. ${item.name}</h3>
                   <span class="place-badge-tag">${item.badge}</span>
                 </div>
+                ${item.signatureMenu ? `<div class="place-signature-badge">🔥 시그니처: ${item.signatureMenu}</div>` : ''}
                 <p class="place-description">${item.description}</p>
+                ${menuHtml}
+                ${moodHtml}
+                <div class="place-info-subtext">
+                  <span>🕒 ${item.businessHours || '영업시간 매장확인'}</span>
+                  ${item.phone ? `<span>📞 ${item.phone}</span>` : ''}
+                </div>
                 <div class="place-meta-footer" style="justify-content:space-between;">
                   <div>
                     <span class="place-star-rating">★ ${item.googleRating}</span>
