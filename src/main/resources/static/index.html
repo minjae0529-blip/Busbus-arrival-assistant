@@ -117,14 +117,16 @@
             <div class="dot-dest"></div>
           </div>
           <div class="nav-fields-col">
-            <div class="nav-input-row">
+            <div class="nav-input-row" style="position: relative;">
               <span class="nav-label">탑승</span>
-              <input type="text" id="inputNavOrigin" class="nav-text-input" value="대연역 (부산고려병원)" placeholder="탑승지/출발역">
+              <input type="text" id="inputNavOrigin" class="nav-text-input" value="대연역 (부산고려병원)" placeholder="탑승지/출발역 입력 (예: 대연역, 광안역, 경성대)" autocomplete="off">
+              <div id="originDropdown" class="nav-autocomplete-dropdown" style="display: none;"></div>
             </div>
             <div class="nav-divider-h"></div>
-            <div class="nav-input-row">
+            <div class="nav-input-row" style="position: relative;">
               <span class="nav-label">목적</span>
-              <input type="text" id="inputNavDest" class="nav-text-input" value="서면역 (서면지하상가)" placeholder="목적지/도착역">
+              <input type="text" id="inputNavDest" class="nav-text-input" value="서면역 (서면지하상가)" placeholder="목적지/도착역 입력 (예: 서면역, 전포역, 문현역)" autocomplete="off">
+              <div id="destDropdown" class="nav-autocomplete-dropdown" style="display: none;"></div>
             </div>
           </div>
           <button class="btn-swap-points" id="btnSwapNavPoints" title="출발지 ⇄ 도착지 맞바꾸기">

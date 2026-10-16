@@ -6,7 +6,12 @@ document.addEventListener('DOMContentLoaded', () => {
     currentLat: 35.13545, // 대연역 (수영로)
     currentLng: 129.09210,
     currentStation: null,
+    originStation: null, // 동적 탑승역
+    destStation: null,   // 동적 도착역
     destination: null,
+    activeBusCoords: [],
+    activeSubwayCoords: [],
+    activeTransitStops: [],
     activeTab: 'destination', // 'destination' | 'all-arrivals' | 'appointments' | 'recommendations' | 'favorites'
     transitMode: 'BUS', // 'BUS' | 'SUBWAY'
     showIntermediateStops: false, // 사용자가 노선을 누를 때만 경유 정류소 표시!
@@ -46,7 +51,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // T-Map Navigation
     inputNavOrigin: document.getElementById('inputNavOrigin'),
+    originDropdown: document.getElementById('originDropdown'),
     inputNavDest: document.getElementById('inputNavDest'),
+    destDropdown: document.getElementById('destDropdown'),
     btnSwapNavPoints: document.getElementById('btnSwapNavPoints'),
     btnSelectBusMode: document.getElementById('btnSelectBusMode'),
     btnSelectSubwayMode: document.getElementById('btnSelectSubwayMode'),
@@ -131,9 +138,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function init() {
     setupEventListeners();
-    await loadInitialLocation();
     await fetchStations();
     await fetchDestination();
+
+    // 기본 경로 설정 (대연역 ➔ 서면역)
+    state.originStation = ALL_STATIONS_MASTER.find(s => s.id === 'ST-BS-DY') || ALL_STATIONS_MASTER[6];
+    state.destStation = ALL_STATIONS_MASTER.find(s => s.id === 'ST-BS-SMN') || ALL_STATIONS_MASTER[12];
+    await applyRouteByStations(state.originStation, state.destStation, false);
+
     await fetchFavorites();
     await fetchAppointments();
     await fetchRecommendations();
@@ -233,13 +245,20 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    // Origin ⇄ Destination Swap
+    // Origin ⇄ Destination Autocomplete & Swap
+    setupStationAutocomplete(el.inputNavOrigin, el.originDropdown, 'origin');
+    setupStationAutocomplete(el.inputNavDest, el.destDropdown, 'dest');
+
     if (el.btnSwapNavPoints) {
       el.btnSwapNavPoints.addEventListener('click', () => {
-        const temp = el.inputNavOrigin.value;
-        el.inputNavOrigin.value = el.inputNavDest.value;
-        el.inputNavDest.value = temp;
-        showToast('출발지와 도착지가 맞바뀌었습니다.');
+        if (state.originStation && state.destStation) {
+          applyRouteByStations(state.destStation, state.originStation, true);
+        } else {
+          const temp = el.inputNavOrigin.value;
+          el.inputNavOrigin.value = el.inputNavDest.value;
+          el.inputNavDest.value = temp;
+          showToast('출발지와 도착지가 맞바뀌었습니다.');
+        }
       });
     }
 
@@ -407,6 +426,192 @@ document.addEventListener('DOMContentLoaded', () => {
     setupBottomSheetGesture();
   }
 
+  /**
+   * 사용자가 역을 입력하거나 선택했을 때 전체 대중교통 경로, 지도 폴라인, 마커, 소요시간, 추천 카드를 동적으로 갱신
+   */
+  async function applyRouteByStations(originSt, destSt, notify = true) {
+    if (!originSt || !destSt) return;
+    if (originSt.id === destSt.id) {
+      showToast('출발지와 도착지가 동일합니다.');
+      return;
+    }
+
+    state.originStation = originSt;
+    state.destStation = destSt;
+    state.currentLat = originSt.lat;
+    state.currentLng = originSt.lng;
+
+    // 입력창 텍스트 갱신
+    if (el.inputNavOrigin) el.inputNavOrigin.value = `${originSt.name} (${originSt.subName || ''})`.trim();
+    if (el.inputNavDest) el.inputNavDest.value = `${destSt.name} (${destSt.subName || ''})`.trim();
+    if (el.gpsStatusText) el.gpsStatusText.textContent = `${originSt.name} (선택)`;
+
+    // 도로 버스 궤적 및 지하철 궤적 동적 추출
+    state.activeBusCoords = buildDynamicRoadPath(originSt, destSt);
+    const subData = buildDynamicSubwayPath(originSt, destSt);
+    state.activeSubwayCoords = subData.coords;
+    state.activeTransitStops = extractTransitStopsBetween(originSt, destSt);
+
+    // 폴라인 실시간 좌표 갱신
+    if (busPolyline && state.activeBusCoords.length > 0) {
+      busPolyline.setLatLngs(state.activeBusCoords);
+    }
+    if (subwayPolyline && state.activeSubwayCoords.length > 0) {
+      subwayPolyline.setLatLngs(state.activeSubwayCoords);
+    }
+
+    // 지도 요소(마커, 정류소 핀) 다시 렌더링
+    renderRealMapElements();
+
+    // 지도를 경로 전체가 한눈에 보이도록 맞춤 (fitBounds)
+    if (leafletMap && state.activeBusCoords.length > 0) {
+      try {
+        leafletMap.fitBounds(state.activeBusCoords, { padding: [60, 60], maxZoom: 16 });
+      } catch (err) { console.warn(err); }
+    }
+
+    // 소요 시간 & 추천 버스 계산
+    const stopsCount = Math.max(1, Math.abs((destSt.roadIndex || 11) - (originSt.roadIndex || 5)));
+    const subwayTime = Math.max(3, Math.round(subData.stations.length * 2.2));
+    const busTime = Math.max(4, Math.round(stopsCount * 2.5 + 3));
+
+    // 추천 버스 번호 결정
+    let recommendedBus = '24번';
+    const isSuyeongGwangan = (originSt.name.includes('수영') || originSt.name.includes('광안') || originSt.name.includes('금련산') || originSt.name.includes('남천') || destSt.name.includes('수영') || destSt.name.includes('광안'));
+    const isYongho = (originSt.name.includes('백운포') || originSt.name.includes('오륙도') || originSt.name.includes('이기대') || destSt.name.includes('백운포') || destSt.name.includes('오륙도'));
+    if (isSuyeongGwangan) recommendedBus = '83번';
+    else if (isYongho) recommendedBus = '24번';
+    else recommendedBus = '24번';
+
+    // 네비게이션 옵션 카드 갱신
+    if (el.btnSelectBusMode) {
+      const timeSpan = el.btnSelectBusMode.querySelector('.mode-time');
+      const nameStrong = el.btnSelectBusMode.querySelector('.mode-route-name strong');
+      if (timeSpan) timeSpan.textContent = `약 ${busTime}분`;
+      if (nameStrong) nameStrong.textContent = `부산 ${recommendedBus}`;
+    }
+    if (el.btnSelectSubwayMode) {
+      const timeSpan = el.btnSelectSubwayMode.querySelector('.mode-time');
+      if (timeSpan) timeSpan.textContent = `약 ${subwayTime}분`;
+    }
+
+    // 하단 미니 요약 갱신
+    if (el.miniSummaryText) {
+      el.miniSummaryText.textContent = `${originSt.name} ➔ ${destSt.name} (${state.transitMode === 'BUS' ? busTime : subwayTime}분 소요)`;
+    }
+    if (el.busStopsToggleText) {
+      el.busStopsToggleText.textContent = `환승 0회 · 클릭 시 정류소 ${state.activeTransitStops.length}개 노선도 표시`;
+    }
+    if (el.subwayStopsToggleText) {
+      el.subwayStopsToggleText.textContent = `환승 0회 · 클릭 시 ${subData.stations.length}개 지하철역 표시`;
+    }
+
+    // 백엔드 목적지 동기화 & 실시간 BIMS 도착 정보 및 상권 추천 갱신
+    try {
+      await fetch('/api/destination', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stationId: destSt.id, memo: destSt.name })
+      });
+      await fetchRecommendations(destSt.id);
+      await refreshAllData(false);
+    } catch (e) { console.error(e); }
+
+    if (notify) {
+      showToast(`🧭 [${originSt.name}] ➔ [${destSt.name}] 경로가 설정되었습니다.`);
+    }
+  }
+
+  /**
+   * 탑승지 및 목적지 입력창 자동완성 드롭다운 & 키보드 탐색 핸들러
+   */
+  function setupStationAutocomplete(inputEl, dropdownEl, role) {
+    if (!inputEl || !dropdownEl) return;
+
+    function renderDropdown(keyword) {
+      const q = (keyword || '').toLowerCase().trim();
+      let matched = ALL_STATIONS_MASTER;
+      if (q) {
+        matched = ALL_STATIONS_MASTER.filter(st => {
+          if (st.name.toLowerCase().includes(q)) return true;
+          if (st.subName && st.subName.toLowerCase().includes(q)) return true;
+          if (st.keywords && st.keywords.some(k => k.toLowerCase().includes(q))) return true;
+          return false;
+        });
+      }
+
+      if (matched.length === 0) {
+        dropdownEl.innerHTML = `<div style="padding:10px 14px; font-size:12px; color:var(--text-muted);">일치하는 역 또는 정류소가 없습니다.</div>`;
+        dropdownEl.style.display = 'block';
+        return;
+      }
+
+      dropdownEl.innerHTML = matched.slice(0, 7).map(st => `
+        <div class="nav-dropdown-item" data-id="${st.id}">
+          <div>
+            <div class="item-title">
+              <span>${st.name}</span>
+              <span class="badge-type ${st.type.includes('SUBWAY') ? 'subway' : 'bus'}">${st.type.includes('SUBWAY') ? '2호선' : '시내버스'}</span>
+            </div>
+            <div class="item-meta">${st.subName || st.line}</div>
+          </div>
+          <span style="font-size:11px; color:#2563EB; font-weight:700;">선택</span>
+        </div>
+      `).join('');
+      dropdownEl.style.display = 'block';
+
+      dropdownEl.querySelectorAll('.nav-dropdown-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const sid = item.dataset.id;
+          const chosen = ALL_STATIONS_MASTER.find(s => s.id === sid);
+          if (chosen) {
+            dropdownEl.style.display = 'none';
+            if (role === 'origin') {
+              applyRouteByStations(chosen, state.destStation);
+            } else {
+              applyRouteByStations(state.originStation, chosen);
+            }
+          }
+        });
+      });
+    }
+
+    inputEl.addEventListener('focus', () => {
+      renderDropdown(inputEl.value);
+    });
+
+    inputEl.addEventListener('input', (e) => {
+      renderDropdown(e.target.value);
+    });
+
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const q = inputEl.value.toLowerCase().trim();
+        const found = ALL_STATIONS_MASTER.find(st =>
+          st.name.toLowerCase().includes(q) ||
+          (st.keywords && st.keywords.some(k => k.toLowerCase().includes(q)))
+        );
+        dropdownEl.style.display = 'none';
+        if (found) {
+          if (role === 'origin') applyRouteByStations(found, state.destStation);
+          else applyRouteByStations(state.originStation, found);
+        } else {
+          showToast(`'${inputEl.value}' 역을 찾을 수 없습니다. 목록에서 선택해주세요.`);
+        }
+      } else if (e.key === 'Escape') {
+        dropdownEl.style.display = 'none';
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!inputEl.contains(e.target) && !dropdownEl.contains(e.target)) {
+        dropdownEl.style.display = 'none';
+      }
+    });
+  }
+
   // Drawer
   function openMenuDrawer() {
     if (el.menuDrawer && el.menuBackdrop) {
@@ -473,16 +678,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function setTransitMode(mode) {
     state.transitMode = mode;
+    const originName = state.originStation ? state.originStation.name : '대연역';
+    const destName = state.destStation ? state.destStation.name : '서면역';
+    const subData = buildDynamicSubwayPath(state.originStation, state.destStation);
+    const subwayTime = Math.max(3, Math.round(subData.stations.length * 2.2));
+    const stopsCount = Math.max(1, Math.abs(((state.destStation && state.destStation.roadIndex) || 11) - ((state.originStation && state.originStation.roadIndex) || 5)));
+    const busTime = Math.max(4, Math.round(stopsCount * 2.5 + 3));
+
+    let recommendedBus = '24번';
+    if (originName.includes('수영') || originName.includes('광안') || originName.includes('금련산') || originName.includes('남천') || destName.includes('수영') || destName.includes('광안')) {
+      recommendedBus = '83번';
+    }
+
     if (mode === 'BUS') {
       if (el.btnSelectBusMode) el.btnSelectBusMode.classList.add('active');
       if (el.btnSelectSubwayMode) el.btnSelectSubwayMode.classList.remove('active');
-      if (el.miniModeBadge) el.miniModeBadge.textContent = '🚌 24번 직통';
-      if (el.miniSummaryText) el.miniSummaryText.textContent = '대연역 ➔ 서면역 직통 (14분 소요)';
+      if (el.miniModeBadge) el.miniModeBadge.textContent = `🚌 ${recommendedBus} 직통`;
+      if (el.miniSummaryText) el.miniSummaryText.textContent = `${originName} ➔ ${destName} 직통 (${busTime}분 소요)`;
     } else {
       if (el.btnSelectSubwayMode) el.btnSelectSubwayMode.classList.add('active');
       if (el.btnSelectBusMode) el.btnSelectBusMode.classList.remove('active');
       if (el.miniModeBadge) el.miniModeBadge.textContent = '🚇 부산 2호선';
-      if (el.miniSummaryText) el.miniSummaryText.textContent = '대연역 ➔ 서면역 정시도착 (11분 소요)';
+      if (el.miniSummaryText) el.miniSummaryText.textContent = `${originName} ➔ ${destName} 정시도착 (${subwayTime}분 소요)`;
     }
     renderCurrentTab();
     drawMap();
@@ -739,11 +956,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 1. SUBWAY VIEW
   function renderSubwayRouteDetails() {
+    const originName = state.originStation ? state.originStation.name : '대연역';
+    const destName = state.destStation ? state.destStation.name : '서면역';
+    const subData = buildDynamicSubwayPath(state.originStation, state.destStation);
+    const subStations = subData.stations;
+    const subwayTime = Math.max(3, Math.round(subStations.length * 2.2));
+    const stopsCount = Math.max(0, subStations.length - 1);
+
     if (el.fastestCard) {
       el.fastestCard.style.display = 'block';
-      el.fastestBusTitle.textContent = '★ [지하철 2호선] 대연역 ➔ 서면역 11분 정시도착!';
-      el.fastestBusDesc.textContent = '6개 역 경유 (못골 ➔ 지게골 ➔ 문현 ➔ BIFC ➔ 전포 ➔ 서면) · 배차 5분';
+      el.fastestBusTitle.textContent = `★ [지하철 2호선] ${originName} ➔ ${destName} ${subwayTime}분 정시도착!`;
+      el.fastestBusDesc.textContent = `${stopsCount}개 역 경유 (${subStations.map(s => s.name).join(' ➔ ')}) · 배차 5분`;
     }
+
+    const stopsChipsHtml = subStations.map((st, idx) => {
+      let cls = 'stop-chip';
+      let tag = '';
+      if (idx === 0) { cls += ' current'; tag = '(승차)'; }
+      else if (idx === subStations.length - 1) { cls += ' is-dest'; tag = '(하차)'; }
+      const arrow = (idx < subStations.length - 1) ? '<span class="stop-arrow">→</span>' : '';
+      return `<span class="${cls}">${st.name}${tag}</span>${arrow}`;
+    }).join('');
 
     el.busListContainer.innerHTML = `
       <div class="bus-card">
@@ -751,8 +984,8 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="bus-badge-container">
             <span class="bus-number-chip" style="background:#10B981;">부산 2호선</span>
             <div class="bus-dir-info">
-              <span class="bus-dir-text">양산/호포 방면 (상행)</span>
-              <span class="bus-stops-estimate">서면역까지 6개 역 경유 (약 11분 소요)</span>
+              <span class="bus-dir-text">${destName} 방면</span>
+              <span class="bus-stops-estimate">${destName}까지 ${stopsCount}개 역 경유 (약 ${subwayTime}분 소요)</span>
             </div>
           </div>
           <span style="font-size:12px; font-weight:800; color:#10B981;">정시 운행</span>
@@ -761,7 +994,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="arrival-row">
           <div class="time-and-stops">
             <span class="primary-remaining-time urgent">2분 후 도착</span>
-            <span class="stops-remaining-text">전역 출발 (경성대역)</span>
+            <span class="stops-remaining-text">전역 출발</span>
           </div>
           <div class="meta-tags-group">
             <span class="meta-pill pill-여유">보통 (혼잡도 낮음)</span>
@@ -772,19 +1005,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="stops-preview-box">
           <span class="stops-preview-title">경유 지하철역 (클릭 시 지도에서 확인):</span>
           <div class="stops-chips-row">
-            <span class="stop-chip current">대연역(승차)</span>
-            <span class="stop-arrow">→</span>
-            <span class="stop-chip">못골</span>
-            <span class="stop-arrow">→</span>
-            <span class="stop-chip">지게골</span>
-            <span class="stop-arrow">→</span>
-            <span class="stop-chip">문현</span>
-            <span class="stop-arrow">→</span>
-            <span class="stop-chip">BIFC</span>
-            <span class="stop-arrow">→</span>
-            <span class="stop-chip">전포</span>
-            <span class="stop-arrow">→</span>
-            <span class="stop-chip is-dest">서면역(하차)</span>
+            ${stopsChipsHtml}
           </div>
         </div>
       </div>
@@ -1565,20 +1786,9 @@ document.addEventListener('DOMContentLoaded', () => {
     el.modalStationList.querySelectorAll('.station-option-item').forEach(item => {
       item.addEventListener('click', async () => {
         const stId = item.dataset.id;
-        const stName = item.dataset.name;
-
-        await fetch('/api/destination', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ stationId: stId, memo: stName })
-        });
-
-        if (el.inputNavDest) el.inputNavDest.value = stName;
+        const chosen = ALL_STATIONS_MASTER.find(s => s.id === stId) || { id: stId, name: item.dataset.name, lat: 35.15517, lng: 129.05925 };
         el.destModal.classList.remove('is-open');
-        await fetchDestination();
-        await fetchRecommendations(stId);
-        await refreshAllData();
-        showToast(`목적지가 [${stName}]으로 설정되었습니다.`);
+        await applyRouteByStations(state.originStation, chosen, true);
       });
     });
   }
@@ -1603,72 +1813,196 @@ document.addEventListener('DOMContentLoaded', () => {
   let hotplaceMarkerGroup = null;
   let currentTileLayer = null;
 
-  // 1. 부산 24번 버스 도로 궤적
-  const busan24RoadCoords = [
+  // ========================================================
+  // DYNAMIC TRANSIT ROUTING ENGINE (ALL BUSAN MAIN STATIONS)
+  // ========================================================
+  const ALL_STATIONS_MASTER = [
+    { id: 'ST-BS-SY', name: '수영역', subName: '수영교차로 (2·3호선)', lat: 35.16100, lng: 129.11650, arsId: '14089', type: 'SUBWAY_BUS', line: '부산 2호선·3호선', roadIndex: 0, keywords: ['수영', '수영역', '수영교차로', 'ㅅㅇ'] },
+    { id: 'ST-BS-GA', name: '광안역', subName: '광안리 입구', lat: 35.15250, lng: 129.11550, arsId: '14062', type: 'SUBWAY_BUS', line: '부산 2호선', roadIndex: 1, keywords: ['광안', '광안역', '광안리', 'ㄱㅇ'] },
+    { id: 'ST-BS-GRS', name: '금련산역', subName: '수영구 금련산', lat: 35.14650, lng: 129.11280, arsId: '14055', type: 'SUBWAY_BUS', line: '부산 2호선', roadIndex: 2, keywords: ['금련산', '금련산역', 'ㄱㄹㅅ'] },
+    { id: 'ST-BS-NC', name: '남천역', subName: '대남교차로', lat: 35.14150, lng: 129.10850, arsId: '07167', type: 'SUBWAY_BUS', line: '부산 2호선', roadIndex: 3, keywords: ['남천', '남천역', '대남교차로', 'ㄴㅊ'] },
+    { id: 'ST-BS-KSU', name: '경성대·부경대역', subName: '경성대학교/대학로', lat: 35.13654, lng: 129.09794, arsId: '07013', type: 'SUBWAY_BUS', line: '부산 2호선', roadIndex: 4, keywords: ['경성대', '부경대', '경대', '경성대부경대역', 'ㄱㅅㄷ', 'ㅂㄱㄷ'] },
+    { id: 'ST-BS-PKNU', name: '부경대대연캠퍼스', subName: '부경대학교 정문', lat: 35.13288, lng: 129.10128, arsId: '07011', type: 'BUS', line: '시내버스 24, 138, 20번', roadIndex: 4.1, keywords: ['부경대캠퍼스', '부경대대연', '대연캠', 'ㅂㄱㄷ'] },
+    { id: 'ST-BS-DY', name: '대연역', subName: '부산고려병원', lat: 35.13545, lng: 129.09210, arsId: '07016', type: 'SUBWAY_BUS', line: '부산 2호선', roadIndex: 5, keywords: ['대연', '대연역', '고려병원', 'ㄷㅇ'] },
+    { id: 'ST-BS-MG', name: '못골역', subName: '남구청·못골시장', lat: 35.13605, lng: 129.08470, arsId: '07165', type: 'SUBWAY_BUS', line: '부산 2호선', roadIndex: 6, keywords: ['못골', '못골역', '남구청', 'ㅁㄱ'] },
+    { id: 'ST-BS-JGG', name: '지게골역', subName: '문현동 지게골', lat: 35.13735, lng: 129.07605, arsId: '07053', type: 'SUBWAY_BUS', line: '부산 2호선', roadIndex: 7, keywords: ['지게골', '지게골역', 'ㅈㄱㄱ'] },
+    { id: 'ST-BS-MH', name: '문현역', subName: '문현교차로', lat: 35.13885, lng: 129.06640, arsId: '07041', type: 'SUBWAY_BUS', line: '부산 2호선', roadIndex: 8, keywords: ['문현', '문현역', '문현교차로', 'ㅁㅎ'] },
+    { id: 'ST-BS-BIFC', name: '국제금융센터·부산은행역', subName: '문현금융단지 BIFC', lat: 35.14750, lng: 129.06470, arsId: '07067', type: 'SUBWAY_BUS', line: '부산 2호선', roadIndex: 9, keywords: ['국제금융센터', '부산은행역', 'BIFC', '금융센터', 'ㅂㅇㅎ'] },
+    { id: 'ST-BS-JP', name: '전포역', subName: '전포카페거리', lat: 35.15420, lng: 129.06320, arsId: '05705', type: 'SUBWAY_BUS', line: '부산 2호선', roadIndex: 10, keywords: ['전포', '전포역', '전포카페', 'ㅈㅍ'] },
+    { id: 'ST-BS-SMN', name: '서면역', subName: '서면지하상가 (1·2호선)', lat: 35.15780, lng: 129.05920, arsId: '05710', type: 'SUBWAY_BUS', line: '부산 1호선·2호선', roadIndex: 11, keywords: ['서면', '서면역', '서면지하상가', 'ㅅㅁ'] },
+    { id: 'ST-BS-BA', name: '부암역', subName: '온종합병원', lat: 35.15980, lng: 129.05050, arsId: '05722', type: 'SUBWAY_BUS', line: '부산 2호선', roadIndex: 12, keywords: ['부암', '부암역', '온종합병원', 'ㅂㅇ'] },
+    { id: 'ST-BS-IGD', name: '이기대입구', subName: '용호사거리', lat: 35.12327, lng: 129.11257, arsId: '07133', type: 'BUS', line: '시내버스 24, 20번', roadIndex: 4.2, keywords: ['이기대', '용호동', 'ㅇㄱㄷ'] },
+    { id: 'ST-BS-ORYK', name: '오륙도스카이워크', subName: '오륙도SK뷰', lat: 35.10127, lng: 129.12192, arsId: '07182', type: 'BUS', line: '시내버스 24번', roadIndex: 4.3, keywords: ['오륙도', '스카이워크', 'ㅇㄹㄷ'] },
+    { id: 'ST-BS-WPO', name: '백운포종점', subName: '용호동 체육공원', lat: 35.10452, lng: 129.11287, arsId: '07078', type: 'BUS', line: '시내버스 24, 20번', roadIndex: 4.4, keywords: ['백운포', '용호동', 'ㅂㅇㅍ'] }
+  ];
+
+  // 실제 도로망 곡선 궤적 테이블 (수영로 ~ 중앙대로 전 구간 도로 상세 좌표)
+  const MASTER_ROAD_PATH = [
+    // 수영역 -> 광안역 (수영로)
+    [35.16100, 129.11650],
+    [35.15850, 129.11610],
+    [35.15550, 129.11580],
+    [35.15250, 129.11550], // 광안역
+    // 광안역 -> 금련산역
+    [35.14950, 129.11420],
+    [35.14650, 129.11280], // 금련산역
+    // 금련산역 -> 남천역 (수영로)
+    [35.14400, 129.11060],
+    [35.14150, 129.10850], // 남천역
+    // 남천역 -> 경성대부경대역
+    [35.13900, 129.10400],
+    [35.13750, 129.10080],
+    [35.13654, 129.09794], // 경성대·부경대역
+    // 경성대 -> 대연역
+    [35.13600, 129.09500],
     [35.13545, 129.09210], // 대연역
+    // 대연역 -> 못골역
     [35.13555, 129.09050],
     [35.13570, 129.08800],
     [35.13605, 129.08470], // 못골역
+    // 못골역 -> 지게골역
     [35.13635, 129.08250],
     [35.13665, 129.08020],
     [35.13695, 129.07830],
     [35.13735, 129.07605], // 지게골역
+    // 지게골역 -> 문현역
     [35.13765, 129.07400],
     [35.13805, 129.07120],
     [35.13840, 129.06880],
     [35.13865, 129.06730],
     [35.13885, 129.06640], // 문현교차로
+    // 문현역 -> BIFC (전포대로)
     [35.13960, 129.06640],
     [35.14150, 129.06625],
     [35.14320, 129.06590],
     [35.14500, 129.06540],
     [35.14650, 129.06500],
     [35.14750, 129.06470], // BIFC
+    // BIFC -> 전포역 (전포대로)
     [35.14920, 129.06420],
-    [35.14928, 129.06330],
-    [35.14935, 129.06200], // 동천교
-    [35.14940, 129.06140],
-    [35.14945, 129.06080], // 지오플레이스
-    [35.15020, 129.06030],
-    [35.15120, 129.05990],
-    [35.15220, 129.05970],
-    [35.15320, 129.05950], // 서면한전
-    [35.15450, 129.05935],
-    [35.15600, 129.05925],
-    [35.15780, 129.05920]  // 서면역
-  ];
-
-  // 2. 지하철 2호선 궤적
-  const subway2LineCoords = [
-    [35.13545, 129.09210], // 대연역
-    [35.13605, 129.08470], // 못골역
-    [35.13735, 129.07605], // 지게골역
-    [35.13885, 129.06640], // 문현역
-    [35.14750, 129.06470], // BIFC
+    [35.15120, 129.06380],
     [35.15420, 129.06320], // 전포역
-    [35.15780, 129.05920]  // 서면역
+    // 전포역 -> 서면역 (동천로/중앙대로)
+    [35.15580, 129.06200],
+    [35.15680, 129.06050],
+    [35.15780, 129.05920], // 서면역
+    // 서면역 -> 부암역 (중앙대로)
+    [35.15880, 129.05500],
+    [35.15980, 129.05050]  // 부암역
   ];
 
-  const realSubwayStations = [
-    { id: 'SUB-DY', name: '대연역', lat: 35.13545, lng: 129.09210, code: '213' },
-    { id: 'SUB-MG', name: '못골역', lat: 35.13605, lng: 129.08470, code: '214' },
-    { id: 'SUB-JG', name: '지게골역', lat: 35.13735, lng: 129.07605, code: '215' },
-    { id: 'SUB-MH', name: '문현역', lat: 35.13885, lng: 129.06640, code: '216' },
-    { id: 'SUB-BIFC', name: '국제금융센터·부산은행역', lat: 35.14750, lng: 129.06470, code: '217' },
-    { id: 'SUB-JP', name: '전포역', lat: 35.15420, lng: 129.06320, code: '218' },
-    { id: 'SUB-SMN', name: '서면역', lat: 35.15780, lng: 129.05920, code: '219', isDest: true }
+  // 지하철 2호선 역 순서 좌표 리스트 (본선)
+  const SUBWAY_LINE2_STATIONS = [
+    { id: 'ST-BS-SY', name: '수영역', lat: 35.16100, lng: 129.11650, code: '208' },
+    { id: 'ST-BS-GA', name: '광안역', lat: 35.15250, lng: 129.11550, code: '209' },
+    { id: 'ST-BS-GRS', name: '금련산역', lat: 35.14650, lng: 129.11280, code: '210' },
+    { id: 'ST-BS-NC', name: '남천역', lat: 35.14150, lng: 129.10850, code: '211' },
+    { id: 'ST-BS-KSU', name: '경성대·부경대역', lat: 35.13654, lng: 129.09794, code: '212' },
+    { id: 'ST-BS-DY', name: '대연역', lat: 35.13545, lng: 129.09210, code: '213' },
+    { id: 'ST-BS-MG', name: '못골역', lat: 35.13605, lng: 129.08470, code: '214' },
+    { id: 'ST-BS-JGG', name: '지게골역', lat: 35.13735, lng: 129.07605, code: '215' },
+    { id: 'ST-BS-MH', name: '문현역', lat: 35.13885, lng: 129.06640, code: '216' },
+    { id: 'ST-BS-BIFC', name: '국제금융센터·부산은행역', lat: 35.14750, lng: 129.06470, code: '217' },
+    { id: 'ST-BS-JP', name: '전포역', lat: 35.15420, lng: 129.06320, code: '218' },
+    { id: 'ST-BS-SMN', name: '서면역', lat: 35.15780, lng: 129.05920, code: '219' },
+    { id: 'ST-BS-BA', name: '부암역', lat: 35.15980, lng: 129.05050, code: '220' }
   ];
 
-  const realStations = [
-    { id: 'ST-BS-DY', name: '대연역', lat: 35.13545, lng: 129.09210, isOrigin: true },
-    { id: 'ST-BS-MG', name: '못골역', lat: 35.13605, lng: 129.08470 },
-    { id: 'ST-BS-JG', name: '지게골역', lat: 35.13735, lng: 129.07605 },
-    { id: 'ST-BS-MH', name: '문현교차로', lat: 35.13885, lng: 129.06640 },
-    { id: 'ST-BS-BIFC', name: '국제금융센터(BIFC)', lat: 35.14750, lng: 129.06470 },
-    { id: 'ST-BS-GOP', name: '지오플레이스', lat: 35.14945, lng: 129.06080 },
-    { id: 'ST-BS-KEPCO', name: '서면한전', lat: 35.15320, lng: 129.05950 },
-    { id: 'ST-BS-SMN', name: '서면역', lat: 35.15780, lng: 129.05920, isDest: true }
-  ];
+  /**
+   * 출발역과 도착역 사이의 도로 버스 주행 궤적 생성
+   */
+  function buildDynamicRoadPath(originSt, destSt) {
+    if (!originSt || !destSt) return MASTER_ROAD_PATH;
+
+    // 가장 가까운 마스터 도로점 인덱스 찾기
+    function findClosestRoadIdx(st) {
+      let minD = Infinity;
+      let minIdx = 0;
+      for (let i = 0; i < MASTER_ROAD_PATH.length; i++) {
+        const pt = MASTER_ROAD_PATH[i];
+        const d = Math.hypot(pt[0] - st.lat, pt[1] - st.lng);
+        if (d < minD) {
+          minD = d;
+          minIdx = i;
+        }
+      }
+      return minIdx;
+    }
+
+    const startIdx = findClosestRoadIdx(originSt);
+    const endIdx = findClosestRoadIdx(destSt);
+
+    let path = [];
+    if (startIdx <= endIdx) {
+      path = MASTER_ROAD_PATH.slice(startIdx, endIdx + 1);
+    } else {
+      path = MASTER_ROAD_PATH.slice(endIdx, startIdx + 1).reverse();
+    }
+
+    // 출발/도착점 정확히 핀과 일치하도록 양 끝점 보정
+    if (path.length === 0) {
+      path = [[originSt.lat, originSt.lng], [destSt.lat, destSt.lng]];
+    } else {
+      path[0] = [originSt.lat, originSt.lng];
+      path[path.length - 1] = [destSt.lat, destSt.lng];
+    }
+    return path;
+  }
+
+  /**
+   * 출발역과 도착역 사이의 지하철 선로 궤적 및 역 목록 생성
+   */
+  function buildDynamicSubwayPath(originSt, destSt) {
+    let sIdx = SUBWAY_LINE2_STATIONS.findIndex(s => s.id === originSt.id || s.name === originSt.name);
+    let eIdx = SUBWAY_LINE2_STATIONS.findIndex(s => s.id === destSt.id || s.name === destSt.name);
+
+    if (sIdx === -1) sIdx = 5; // 대연역
+    if (eIdx === -1) eIdx = 11; // 서면역
+
+    let stationsSlice = [];
+    if (sIdx <= eIdx) {
+      stationsSlice = SUBWAY_LINE2_STATIONS.slice(sIdx, eIdx + 1);
+    } else {
+      stationsSlice = SUBWAY_LINE2_STATIONS.slice(eIdx, sIdx + 1).reverse();
+    }
+
+    const coords = stationsSlice.map(s => [s.lat, s.lng]);
+    return { stations: stationsSlice, coords: coords };
+  }
+
+  /**
+   * 구간 내 경유 정류소 목록 추출
+   */
+  function extractTransitStopsBetween(originSt, destSt) {
+    const list = [];
+    const minLat = Math.min(originSt.lat, destSt.lat) - 0.003;
+    const maxLat = Math.max(originSt.lat, destSt.lat) + 0.003;
+    const minLng = Math.min(originSt.lng, destSt.lng) - 0.003;
+    const maxLng = Math.max(originSt.lng, destSt.lng) + 0.003;
+
+    ALL_STATIONS_MASTER.forEach(st => {
+      if (st.lat >= minLat && st.lat <= maxLat && st.lng >= minLng && st.lng <= maxLng) {
+        list.push({
+          id: st.id,
+          name: st.name,
+          lat: st.lat,
+          lng: st.lng,
+          isOrigin: (st.id === originSt.id),
+          isDest: (st.id === destSt.id)
+        });
+      }
+    });
+
+    // 출발역과 도착역 보장
+    if (!list.some(s => s.isOrigin)) {
+      list.unshift({ id: originSt.id, name: originSt.name, lat: originSt.lat, lng: originSt.lng, isOrigin: true });
+    }
+    if (!list.some(s => s.isDest)) {
+      list.push({ id: destSt.id, name: destSt.name, lat: destSt.lat, lng: destSt.lng, isDest: true });
+    }
+
+    return list;
+  }
 
   const tileLayers = {
     google: L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&scale=2', {
@@ -1693,12 +2027,20 @@ document.addEventListener('DOMContentLoaded', () => {
   function initRealLeafletMap() {
     if (!el.mapContainer || leafletMap) return;
 
+    const initialBusCoords = (state.activeBusCoords && state.activeBusCoords.length > 0)
+      ? state.activeBusCoords
+      : MASTER_ROAD_PATH.slice(12, 36);
+
+    const initialSubwayCoords = (state.activeSubwayCoords && state.activeSubwayCoords.length > 0)
+      ? state.activeSubwayCoords
+      : SUBWAY_LINE2_STATIONS.slice(5, 12).map(s => [s.lat, s.lng]);
+
     leafletMap = L.map(el.mapContainer, {
       center: [35.1465, 129.0740],
-      zoom: 15,
+      zoom: 14,
       zoomSnap: 1,
       zoomDelta: 1,
-      minZoom: 11,
+      minZoom: 10,
       maxZoom: 19,
       zoomControl: false
     });
@@ -1709,17 +2051,17 @@ document.addEventListener('DOMContentLoaded', () => {
     liveBusMarkersGroup = L.layerGroup().addTo(leafletMap);
     hotplaceMarkerGroup = L.layerGroup().addTo(leafletMap);
 
-    busPolyline = L.polyline(busan24RoadCoords, {
+    busPolyline = L.polyline(initialBusCoords, {
       color: '#2563EB',
       weight: 5,
-      opacity: 0.9,
+      opacity: 0.92,
       smoothFactor: 1
     }).addTo(leafletMap);
 
-    subwayPolyline = L.polyline(subway2LineCoords, {
+    subwayPolyline = L.polyline(initialSubwayCoords, {
       color: '#10B981',
       weight: 6,
-      opacity: 0.9,
+      opacity: 0.95,
       dashArray: '8, 6',
       smoothFactor: 1
     }).addTo(leafletMap);
@@ -1785,20 +2127,23 @@ document.addEventListener('DOMContentLoaded', () => {
         busPolyline.setStyle({ opacity: 0.2, weight: 3 });
         subwayPolyline.setStyle({ opacity: 0.95, weight: 6, dashArray: null });
       } else {
-        busPolyline.setStyle({ opacity: 0.9, weight: 5 });
-        subwayPolyline.setStyle({ opacity: 0.2, weight: 3, dashArray: '6, 6' });
+        busPolyline.setStyle({ opacity: 0.92, weight: 5 });
+        subwayPolyline.setStyle({ opacity: 0.22, weight: 3, dashArray: '6, 6' });
       }
     }
 
     if (isSubway) {
       // 1. Subway Mode
-      realSubwayStations.forEach(st => {
-        const isStartOrEnd = (st.id === 'SUB-DY' || st.id === 'SUB-SMN');
-        if (showAllStops || isStartOrEnd) {
-          const isOrigin = st.id === 'SUB-DY';
+      const subwayData = buildDynamicSubwayPath(state.originStation, state.destStation);
+      const subStations = subwayData.stations;
+
+      subStations.forEach((st, idx) => {
+        const isStart = (idx === 0);
+        const isEnd = (idx === subStations.length - 1);
+        if (showAllStops || isStart || isEnd) {
           let pinHtml = `<div class="leaflet-subway-pin"></div>`;
-          if (isOrigin) pinHtml = `<div class="leaflet-current-pin" title="탑승역"></div>`;
-          else if (st.isDest) pinHtml = `<div class="leaflet-dest-pin" title="도착역"></div>`;
+          if (isStart) pinHtml = `<div class="leaflet-current-pin" title="탑승역"></div>`;
+          else if (isEnd) pinHtml = `<div class="leaflet-dest-pin" title="도착역"></div>`;
 
           const customIcon = L.divIcon({
             className: 'custom-station-wrapper',
@@ -1817,18 +2162,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
 
-      // Subway train beacon
-      const subwayTrainIcon = L.divIcon({
-        className: 'subway-beacon-wrapper',
-        html: `<div class="leaflet-subway-beacon">🚇 2호선 전동차 (못골➔지게골)</div>`,
-        iconSize: [140, 24],
-        iconAnchor: [70, 12]
-      });
-      L.marker([35.13670, 129.08050], { icon: subwayTrainIcon }).addTo(liveBusMarkersGroup);
+      // Subway train beacon along the line
+      if (subwayData.coords.length >= 2) {
+        const midIdx = Math.floor(subwayData.coords.length / 2);
+        const trainCoord = subwayData.coords[midIdx];
+        const subwayTrainIcon = L.divIcon({
+          className: 'subway-beacon-wrapper',
+          html: `<div class="leaflet-subway-beacon">🚇 2호선 전동차 (${subStations[Math.max(0, midIdx - 1)].name}➔${subStations[midIdx].name})</div>`,
+          iconSize: [150, 24],
+          iconAnchor: [75, 12]
+        });
+        L.marker(trainCoord, { icon: subwayTrainIcon }).addTo(liveBusMarkersGroup);
+      }
 
     } else {
       // 2. Bus Mode
-      realStations.forEach(st => {
+      const stops = (state.activeTransitStops && state.activeTransitStops.length > 0)
+        ? state.activeTransitStops
+        : extractTransitStopsBetween(state.originStation, state.destStation);
+
+      stops.forEach(st => {
         const isStartOrEnd = (st.isOrigin || st.isDest);
         if (showAllStops || isStartOrEnd) {
           let pinHtml = `<div class="leaflet-station-pin"></div>`;
@@ -1852,16 +2205,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
 
-      // 24 bus live vehicle
+      // Live vehicle position on the active road path
       let bus1Sec = 180;
       if (state.cachedMatches && state.cachedMatches.length > 0 && state.cachedMatches[0].arrivalInfo) {
         bus1Sec = state.cachedMatches[0].arrivalInfo.remainingSeconds;
       }
+      const busNum = (state.cachedMatches && state.cachedMatches.length > 0) ? state.cachedMatches[0].busNumber : '24';
 
-      const busCoord = interpolateRoadPosition(busan24RoadCoords, bus1Sec);
+      const activeRoad = (state.activeBusCoords && state.activeBusCoords.length > 0) ? state.activeBusCoords : MASTER_ROAD_PATH;
+      const busCoord = interpolateRoadPosition(activeRoad, bus1Sec);
       const busIcon = L.divIcon({
         className: 'bus-icon-wrapper',
-        html: `<div class="leaflet-bus-icon"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="3" width="16" height="15" rx="2.5"/><path d="M4 11h16"/><circle cx="8" cy="15" r="1.5" fill="currentColor"/><circle cx="16" cy="15" r="1.5" fill="currentColor"/></svg><span>24번 (${Math.max(1, Math.round(bus1Sec / 60))}분 전)</span></div>`,
+        html: `<div class="leaflet-bus-icon"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="3" width="16" height="15" rx="2.5"/><path d="M4 11h16"/><circle cx="8" cy="15" r="1.5" fill="currentColor"/><circle cx="16" cy="15" r="1.5" fill="currentColor"/></svg><span>${busNum}번 (${Math.max(1, Math.round(bus1Sec / 60))}분 전)</span></div>`,
         iconSize: [100, 24],
         iconAnchor: [50, 12]
       });
