@@ -1,8 +1,8 @@
 {
-  "stationId" : "ST-BS-SMN",
-  "stationName" : "서면역.서면지하상가",
-  "latitude" : 35.15517,
-  "longitude" : 129.05925,
-  "memo" : "서면역",
-  "updatedAt" : "2026-10-16T12:44:13.729545"
+  "stationId" : "ST-BS-GA",
+  "stationName" : "광안역 (수영구 광안동)",
+  "latitude" : 35.1525,
+  "longitude" : 129.1155,
+  "memo" : "광안역",
+  "updatedAt" : "2026-10-16T15:36:24.832704"
 }
