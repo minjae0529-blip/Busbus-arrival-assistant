@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showIntermediateStops: false, // 사용자가 노선을 누를 때만 경유 정류소 표시!
     selectedPlaceForNav: null, // 도보 길안내 선택된 장소
     selectedPlaceFilter: 'ALL', // 'ALL' | 'FRIEND' | 'SOLO' | 'PLAY' | 'CAFE' | 'FOOD'
+    selectedRegion: 'ALL', // 부산 권역: 'ALL', 'SEOMYEON', 'HAEUNDAE', 'GWANGAN', etc.
     allStations: [],
     favorites: [],
     cachedArrivals: [],
@@ -36,6 +37,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // DOM Elements
   const el = {
+    // Region Selector
+    regionChipsContainer: document.getElementById('regionChipsContainer'),
+    selectedRegionLabel: document.getElementById('selectedRegionLabel'),
+
     // Menu Drawer
     btnOpenMenuDrawer: document.getElementById('btnOpenMenuDrawer'),
     btnCloseMenuDrawer: document.getElementById('btnCloseMenuDrawer'),
@@ -424,6 +429,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 9. Bottom Sheet Gesture
     setupBottomSheetGesture();
+
+    // 10. Region Selector Setup
+    setupRegionSelector();
+  }
+
+  /**
+   * 부산 12대 권역 선택 바 핸들러
+   */
+  function setupRegionSelector() {
+    if (!el.regionChipsContainer) return;
+    const chips = el.regionChipsContainer.querySelectorAll('.region-chip');
+    chips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        chips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        const region = chip.dataset.region || 'ALL';
+        state.selectedRegion = region;
+
+        if (el.selectedRegionLabel) {
+          el.selectedRegionLabel.textContent = chip.textContent.replace(/^[^\w가-힣]+/, '').trim();
+        }
+
+        if (region === 'ALL') {
+          if (leafletMap) leafletMap.flyTo([35.1550, 129.0750], 12);
+          showToast('부산 전역 노선망으로 지도를 이동했습니다.');
+          return;
+        }
+
+        // 해당 권역의 중심역 찾기
+        const centerName = chip.dataset.center;
+        const targetSt = ALL_STATIONS_MASTER.find(s => s.name === centerName || s.name.startsWith(centerName))
+          || ALL_STATIONS_MASTER.find(s => s.region === region);
+
+        if (targetSt && leafletMap) {
+          leafletMap.flyTo([targetSt.lat, targetSt.lng], 15);
+          showToast(`📍 [${chip.textContent.trim()}] 권역으로 이동했습니다. (${targetSt.name})`);
+          
+          // 사용자가 출발지와 다른 곳을 선택한 경우 목적지로 즉시 추천 설정 가능하도록 편의 제공
+          if (state.originStation && state.originStation.id !== targetSt.id) {
+            applyRouteByStations(state.originStation, targetSt, true);
+          }
+        }
+      });
+    });
   }
 
   /**
@@ -446,7 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (el.inputNavDest) el.inputNavDest.value = `${destSt.name} (${destSt.subName || ''})`.trim();
     if (el.gpsStatusText) el.gpsStatusText.textContent = `${originSt.name} (선택)`;
 
-    // 도로 버스 궤적 및 지하철 궤적 동적 추출
+    // 도로 버스 궤적 및 지하철 궤적 동적 추출 (환승 지원 전역 엔진)
     state.activeBusCoords = buildDynamicRoadPath(originSt, destSt);
     const subData = buildDynamicSubwayPath(originSt, destSt);
     state.activeSubwayCoords = subData.coords;
@@ -471,28 +520,43 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 소요 시간 & 추천 버스 계산
-    const stopsCount = Math.max(1, Math.abs((destSt.roadIndex || 11) - (originSt.roadIndex || 5)));
-    const subwayTime = Math.max(3, Math.round(subData.stations.length * 2.2));
-    const busTime = Math.max(4, Math.round(stopsCount * 2.5 + 3));
+    const stopsCount = Math.max(2, Math.abs((destSt.roadIndex || 11) - (originSt.roadIndex || 5)));
+    const subwayTime = subData.timeMins;
+    const busTime = Math.max(5, Math.round(stopsCount * 2.5 + 4));
 
-    // 추천 버스 번호 결정
+    // 추천 버스 번호 결정 (권역별 버스 지능 매칭)
     let recommendedBus = '24번';
-    const isSuyeongGwangan = (originSt.name.includes('수영') || originSt.name.includes('광안') || originSt.name.includes('금련산') || originSt.name.includes('남천') || destSt.name.includes('수영') || destSt.name.includes('광안'));
-    const isYongho = (originSt.name.includes('백운포') || originSt.name.includes('오륙도') || originSt.name.includes('이기대') || destSt.name.includes('백운포') || destSt.name.includes('오륙도'));
-    if (isSuyeongGwangan) recommendedBus = '83번';
-    else if (isYongho) recommendedBus = '24번';
-    else recommendedBus = '24번';
+    const isGijang = (originSt.region === 'GIJANG' || destSt.region === 'GIJANG');
+    const isHadan = (originSt.region === 'HADAN' || destSt.region === 'HADAN');
+    const isDongnaePnu = (originSt.region === 'DONGNAE' || originSt.region === 'PNU' || destSt.region === 'DONGNAE' || destSt.region === 'PNU');
+    const isHaeundae = (originSt.region === 'HAEUNDAE' || destSt.region === 'HAEUNDAE');
+
+    if (isGijang || isHaeundae) {
+      recommendedBus = '급행 1001번 (해운대·기장 ↔ 서면)';
+    } else if (isHadan) {
+      recommendedBus = '급행 1000번 (다대포·하단 ↔ 부산역·서면)';
+    } else if (isDongnaePnu) {
+      recommendedBus = '시내 80번 (부산대·동래 ↔ 서면)';
+    } else {
+      recommendedBus = '시내 83번 (수영·광안 ↔ 서면)';
+    }
 
     // 네비게이션 옵션 카드 갱신
     if (el.btnSelectBusMode) {
       const timeSpan = el.btnSelectBusMode.querySelector('.mode-time');
       const nameStrong = el.btnSelectBusMode.querySelector('.mode-route-name strong');
       if (timeSpan) timeSpan.textContent = `약 ${busTime}분`;
-      if (nameStrong) nameStrong.textContent = `부산 ${recommendedBus}`;
+      if (nameStrong) nameStrong.textContent = `${recommendedBus}`;
     }
     if (el.btnSelectSubwayMode) {
       const timeSpan = el.btnSelectSubwayMode.querySelector('.mode-time');
+      const nameStrong = el.btnSelectSubwayMode.querySelector('.mode-route-name strong');
       if (timeSpan) timeSpan.textContent = `약 ${subwayTime}분`;
+      if (nameStrong) {
+        nameStrong.textContent = subData.isTransfer
+          ? `환승 1회 (${subData.lineFromName} ➔ ${subData.lineToName})`
+          : `직통 (${subData.lineFromName})`;
+      }
     }
 
     // 하단 미니 요약 갱신
@@ -503,7 +567,9 @@ document.addEventListener('DOMContentLoaded', () => {
       el.busStopsToggleText.textContent = `환승 0회 · 클릭 시 정류소 ${state.activeTransitStops.length}개 노선도 표시`;
     }
     if (el.subwayStopsToggleText) {
-      el.subwayStopsToggleText.textContent = `환승 0회 · 클릭 시 ${subData.stations.length}개 지하철역 표시`;
+      el.subwayStopsToggleText.textContent = subData.isTransfer
+        ? `환승 1회 (${subData.transferStation.name} 환승) · 클릭 시 ${subData.stations.length}개 역 표시`
+        : `직통 (환승 0회) · 클릭 시 ${subData.stations.length}개 역 표시`;
     }
 
     // 백엔드 목적지 동기화 & 실시간 BIMS 도착 정보 및 상권 추천 갱신
@@ -531,8 +597,16 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderDropdown(keyword) {
       const q = (keyword || '').toLowerCase().trim();
       let matched = ALL_STATIONS_MASTER;
+
+      // 권역 필터가 ALL이 아니면 해당 권역 역을 상위에 우선 배치
+      if (state.selectedRegion && state.selectedRegion !== 'ALL') {
+        const inRegion = ALL_STATIONS_MASTER.filter(s => s.region === state.selectedRegion);
+        const outRegion = ALL_STATIONS_MASTER.filter(s => s.region !== state.selectedRegion);
+        matched = [...inRegion, ...outRegion];
+      }
+
       if (q) {
-        matched = ALL_STATIONS_MASTER.filter(st => {
+        matched = matched.filter(st => {
           if (st.name.toLowerCase().includes(q)) return true;
           if (st.subName && st.subName.toLowerCase().includes(q)) return true;
           if (st.keywords && st.keywords.some(k => k.toLowerCase().includes(q))) return true;
@@ -546,18 +620,36 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      dropdownEl.innerHTML = matched.slice(0, 7).map(st => `
-        <div class="nav-dropdown-item" data-id="${st.id}">
-          <div>
-            <div class="item-title">
-              <span>${st.name}</span>
-              <span class="badge-type ${st.type.includes('SUBWAY') ? 'subway' : 'bus'}">${st.type.includes('SUBWAY') ? '2호선' : '시내버스'}</span>
+      dropdownEl.innerHTML = matched.slice(0, 8).map(st => {
+        let badgeClass = 'badge-line-2';
+        let lineBadgeText = '2호선';
+        if (st.lines && st.lines.includes('1')) {
+          badgeClass = 'badge-line-1';
+          lineBadgeText = st.lines.includes('2') ? '1·2호선' : '1호선';
+        } else if (st.lines && st.lines.includes('3')) {
+          badgeClass = 'badge-line-3';
+          lineBadgeText = '3호선';
+        } else if (st.lines && st.lines.includes('DONGHAE')) {
+          badgeClass = 'badge-line-donghae';
+          lineBadgeText = '동해선';
+        } else if (st.type === 'BUS') {
+          badgeClass = 'subway';
+          lineBadgeText = '시내버스';
+        }
+
+        return `
+          <div class="nav-dropdown-item" data-id="${st.id}">
+            <div>
+              <div class="item-title">
+                <span>${st.name}</span>
+                <span class="badge-type ${badgeClass}">${lineBadgeText}</span>
+              </div>
+              <div class="item-meta">${st.subName || st.lineLabel || ''}</div>
             </div>
-            <div class="item-meta">${st.subName || st.line}</div>
+            <span style="font-size:11px; color:#2563EB; font-weight:700;">선택</span>
           </div>
-          <span style="font-size:11px; color:#2563EB; font-weight:700;">선택</span>
-        </div>
-      `).join('');
+        `;
+      }).join('');
       dropdownEl.style.display = 'block';
 
       dropdownEl.querySelectorAll('.nav-dropdown-item').forEach(item => {
@@ -1814,98 +1906,215 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentTileLayer = null;
 
   // ========================================================
-  // DYNAMIC TRANSIT ROUTING ENGINE (ALL BUSAN MAIN STATIONS)
+  // DYNAMIC TRANSIT ROUTING ENGINE (ALL BUSAN 1·2·3·DONGHAE LINES)
   // ========================================================
   const ALL_STATIONS_MASTER = [
-    { id: 'ST-BS-SY', name: '수영역', subName: '수영교차로 (2·3호선)', lat: 35.16100, lng: 129.11650, arsId: '14089', type: 'SUBWAY_BUS', line: '부산 2호선·3호선', roadIndex: 0, keywords: ['수영', '수영역', '수영교차로', 'ㅅㅇ'] },
-    { id: 'ST-BS-GA', name: '광안역', subName: '광안리 입구', lat: 35.15250, lng: 129.11550, arsId: '14062', type: 'SUBWAY_BUS', line: '부산 2호선', roadIndex: 1, keywords: ['광안', '광안역', '광안리', 'ㄱㅇ'] },
-    { id: 'ST-BS-GRS', name: '금련산역', subName: '수영구 금련산', lat: 35.14650, lng: 129.11280, arsId: '14055', type: 'SUBWAY_BUS', line: '부산 2호선', roadIndex: 2, keywords: ['금련산', '금련산역', 'ㄱㄹㅅ'] },
-    { id: 'ST-BS-NC', name: '남천역', subName: '대남교차로', lat: 35.14150, lng: 129.10850, arsId: '07167', type: 'SUBWAY_BUS', line: '부산 2호선', roadIndex: 3, keywords: ['남천', '남천역', '대남교차로', 'ㄴㅊ'] },
-    { id: 'ST-BS-KSU', name: '경성대·부경대역', subName: '경성대학교/대학로', lat: 35.13654, lng: 129.09794, arsId: '07013', type: 'SUBWAY_BUS', line: '부산 2호선', roadIndex: 4, keywords: ['경성대', '부경대', '경대', '경성대부경대역', 'ㄱㅅㄷ', 'ㅂㄱㄷ'] },
-    { id: 'ST-BS-PKNU', name: '부경대대연캠퍼스', subName: '부경대학교 정문', lat: 35.13288, lng: 129.10128, arsId: '07011', type: 'BUS', line: '시내버스 24, 138, 20번', roadIndex: 4.1, keywords: ['부경대캠퍼스', '부경대대연', '대연캠', 'ㅂㄱㄷ'] },
-    { id: 'ST-BS-DY', name: '대연역', subName: '부산고려병원', lat: 35.13545, lng: 129.09210, arsId: '07016', type: 'SUBWAY_BUS', line: '부산 2호선', roadIndex: 5, keywords: ['대연', '대연역', '고려병원', 'ㄷㅇ'] },
-    { id: 'ST-BS-MG', name: '못골역', subName: '남구청·못골시장', lat: 35.13605, lng: 129.08470, arsId: '07165', type: 'SUBWAY_BUS', line: '부산 2호선', roadIndex: 6, keywords: ['못골', '못골역', '남구청', 'ㅁㄱ'] },
-    { id: 'ST-BS-JGG', name: '지게골역', subName: '문현동 지게골', lat: 35.13735, lng: 129.07605, arsId: '07053', type: 'SUBWAY_BUS', line: '부산 2호선', roadIndex: 7, keywords: ['지게골', '지게골역', 'ㅈㄱㄱ'] },
-    { id: 'ST-BS-MH', name: '문현역', subName: '문현교차로', lat: 35.13885, lng: 129.06640, arsId: '07041', type: 'SUBWAY_BUS', line: '부산 2호선', roadIndex: 8, keywords: ['문현', '문현역', '문현교차로', 'ㅁㅎ'] },
-    { id: 'ST-BS-BIFC', name: '국제금융센터·부산은행역', subName: '문현금융단지 BIFC', lat: 35.14750, lng: 129.06470, arsId: '07067', type: 'SUBWAY_BUS', line: '부산 2호선', roadIndex: 9, keywords: ['국제금융센터', '부산은행역', 'BIFC', '금융센터', 'ㅂㅇㅎ'] },
-    { id: 'ST-BS-JP', name: '전포역', subName: '전포카페거리', lat: 35.15420, lng: 129.06320, arsId: '05705', type: 'SUBWAY_BUS', line: '부산 2호선', roadIndex: 10, keywords: ['전포', '전포역', '전포카페', 'ㅈㅍ'] },
-    { id: 'ST-BS-SMN', name: '서면역', subName: '서면지하상가 (1·2호선)', lat: 35.15780, lng: 129.05920, arsId: '05710', type: 'SUBWAY_BUS', line: '부산 1호선·2호선', roadIndex: 11, keywords: ['서면', '서면역', '서면지하상가', 'ㅅㅁ'] },
-    { id: 'ST-BS-BA', name: '부암역', subName: '온종합병원', lat: 35.15980, lng: 129.05050, arsId: '05722', type: 'SUBWAY_BUS', line: '부산 2호선', roadIndex: 12, keywords: ['부암', '부암역', '온종합병원', 'ㅂㅇ'] },
-    { id: 'ST-BS-IGD', name: '이기대입구', subName: '용호사거리', lat: 35.12327, lng: 129.11257, arsId: '07133', type: 'BUS', line: '시내버스 24, 20번', roadIndex: 4.2, keywords: ['이기대', '용호동', 'ㅇㄱㄷ'] },
-    { id: 'ST-BS-ORYK', name: '오륙도스카이워크', subName: '오륙도SK뷰', lat: 35.10127, lng: 129.12192, arsId: '07182', type: 'BUS', line: '시내버스 24번', roadIndex: 4.3, keywords: ['오륙도', '스카이워크', 'ㅇㄹㄷ'] },
-    { id: 'ST-BS-WPO', name: '백운포종점', subName: '용호동 체육공원', lat: 35.10452, lng: 129.11287, arsId: '07078', type: 'BUS', line: '시내버스 24, 20번', roadIndex: 4.4, keywords: ['백운포', '용호동', 'ㅂㅇㅍ'] }
+    // [SEOMYEON: 서면/진구]
+    { id: 'ST-BS-SMN', name: '서면역', subName: '1·2호선 환승역 (서면지하상가)', lat: 35.15780, lng: 129.05920, arsId: '05710', type: 'SUBWAY_BUS', lines: ['1', '2'], lineLabel: '1호선·2호선', region: 'SEOMYEON', roadIndex: 11, keywords: ['서면', '서면역', 'ㅅㅁ'] },
+    { id: 'ST-BS-JP', name: '전포역', subName: '전포카페거리 (2호선)', lat: 35.15420, lng: 129.06320, arsId: '05705', type: 'SUBWAY_BUS', lines: ['2'], lineLabel: '부산 2호선', region: 'SEOMYEON', roadIndex: 10, keywords: ['전포', '전포역', '전포카페', 'ㅈㅍ'] },
+    { id: 'ST-BS-BA', name: '부암역', subName: '온종합병원 (2호선)', lat: 35.15980, lng: 129.05050, arsId: '05722', type: 'SUBWAY_BUS', lines: ['2'], lineLabel: '부산 2호선', region: 'SEOMYEON', roadIndex: 12, keywords: ['부암', '부암역', 'ㅂㅇ'] },
+    { id: 'ST-BS-BNG', name: '범내골역', subName: '중앙대로 상권 (1호선)', lat: 35.14810, lng: 129.05970, arsId: '05701', type: 'SUBWAY_BUS', lines: ['1'], lineLabel: '부산 1호선', region: 'SEOMYEON', roadIndex: 10.5, keywords: ['범내골', 'ㅂㄴㄱ'] },
+    { id: 'ST-BS-YJ', name: '양정역', subName: '송상현광장 인근 (1호선)', lat: 35.17300, lng: 129.07130, arsId: '05730', type: 'SUBWAY_BUS', lines: ['1'], lineLabel: '부산 1호선', region: 'SEOMYEON', roadIndex: 13, keywords: ['양정', '양정역', 'ㅇㅈ'] },
+
+    // [HAEUNDAE: 해운대/센텀]
+    { id: 'ST-BS-HUD', name: '해운대역', subName: '해운대해수욕장·구남로 (2호선)', lat: 35.16310, lng: 129.15850, arsId: '09012', type: 'SUBWAY_BUS', lines: ['2'], lineLabel: '부산 2호선', region: 'HAEUNDAE', roadIndex: 25, keywords: ['해운대', '해운대역', '구남로', 'ㅎㅇㄷ'] },
+    { id: 'ST-BS-CT', name: '센텀시티역', subName: '신세계백화점·벡스코 (2호선)', lat: 35.16890, lng: 129.13170, arsId: '09001', type: 'SUBWAY_BUS', lines: ['2'], lineLabel: '부산 2호선', region: 'HAEUNDAE', roadIndex: 22, keywords: ['센텀', '센텀시티', '신세계', 'ㅅㅌ'] },
+    { id: 'ST-BS-BX', name: '벡스코역', subName: '2호선·동해선 환승역', lat: 35.16890, lng: 129.13890, arsId: '09005', type: 'SUBWAY_BUS', lines: ['2', 'DONGHAE'], lineLabel: '2호선·동해선', region: 'HAEUNDAE', roadIndex: 23, keywords: ['벡스코', '벡스코역', '시립미술관', 'ㅂㅅㅋ'] },
+    { id: 'ST-BS-JS', name: '장산역', subName: '해운대 신시가지 종점 (2호선)', lat: 35.16990, lng: 129.17690, arsId: '09025', type: 'SUBWAY_BUS', lines: ['2'], lineLabel: '부산 2호선', region: 'HAEUNDAE', roadIndex: 27, keywords: ['장산', '장산역', 'ㅈㅅ'] },
+    { id: 'ST-BS-DB', name: '동백역', subName: '마린시티·동백섬 (2호선)', lat: 35.16010, lng: 129.14380, arsId: '09008', type: 'SUBWAY_BUS', lines: ['2'], lineLabel: '부산 2호선', region: 'HAEUNDAE', roadIndex: 24, keywords: ['동백', '동백역', '마린시티', 'ㄷㅂ'] },
+
+    // [GWANGAN: 광안/수영]
+    { id: 'ST-BS-GA', name: '광안역', subName: '광안리 해수욕장 입구 (2호선)', lat: 35.15250, lng: 129.11550, arsId: '14062', type: 'SUBWAY_BUS', lines: ['2'], lineLabel: '부산 2호선', region: 'GWANGAN', roadIndex: 1, keywords: ['광안', '광안역', '광안리', 'ㄱㅇ'] },
+    { id: 'ST-BS-SY', name: '수영역', subName: '2·3호선 환승역 (수영교차로)', lat: 35.16100, lng: 129.11650, arsId: '14089', type: 'SUBWAY_BUS', lines: ['2', '3'], lineLabel: '2호선·3호선', region: 'GWANGAN', roadIndex: 0, keywords: ['수영', '수영역', '수영교차로', 'ㅅㅇ'] },
+    { id: 'ST-BS-GRS', name: '금련산역', subName: '광안리 남측 카페거리 (2호선)', lat: 35.14650, lng: 129.11280, arsId: '14055', type: 'SUBWAY_BUS', lines: ['2'], lineLabel: '부산 2호선', region: 'GWANGAN', roadIndex: 2, keywords: ['금련산', '금련산역', 'ㄱㄹㅅ'] },
+    { id: 'ST-BS-NC', name: '남천역', subName: '남천 빵천동·대남교차로 (2호선)', lat: 35.14150, lng: 129.10850, arsId: '07167', type: 'SUBWAY_BUS', lines: ['2'], lineLabel: '부산 2호선', region: 'GWANGAN', roadIndex: 3, keywords: ['남천', '남천역', '대남교차로', '빵천동', 'ㄴㅊ'] },
+    { id: 'ST-BS-MM', name: '망미역', subName: '수영구 복합문화거리 (3호선)', lat: 35.17180, lng: 129.10820, arsId: '14040', type: 'SUBWAY_BUS', lines: ['3'], lineLabel: '부산 3호선', region: 'GWANGAN', roadIndex: 0.8, keywords: ['망미', '망미역', 'ㅁㅁ'] },
+
+    // [BUSAN_STATION: 부산역/남포]
+    { id: 'ST-BS-BSST', name: '부산역', subName: 'KTX 고속철도 환승 (1호선)', lat: 35.11520, lng: 129.04220, arsId: '03010', type: 'SUBWAY_BUS', lines: ['1'], lineLabel: '부산 1호선', region: 'BUSAN_STATION', roadIndex: 7, keywords: ['부산역', 'KTX', '초량', 'ㅂㅅㅇ'] },
+    { id: 'ST-BS-NPST', name: '남포역', subName: '용두산공원·광복로 패션거리 (1호선)', lat: 35.09790, lng: 129.03480, arsId: '01015', type: 'SUBWAY_BUS', lines: ['1'], lineLabel: '부산 1호선', region: 'BUSAN_STATION', roadIndex: 5, keywords: ['남포', '남포역', '광복로', 'ㄴㅍ'] },
+    { id: 'ST-BS-JGC', name: '자갈치역', subName: '자갈치시장·비프광장 (1호선)', lat: 35.09750, lng: 129.02670, arsId: '01018', type: 'SUBWAY_BUS', lines: ['1'], lineLabel: '부산 1호선', region: 'BUSAN_STATION', roadIndex: 4.8, keywords: ['자갈치', '자갈치역', '비프광장', 'ㅈㄱㅊ'] },
+    { id: 'ST-BS-CR', name: '초량역', subName: '초량 불백거리 (1호선)', lat: 35.12050, lng: 129.04400, arsId: '03005', type: 'SUBWAY_BUS', lines: ['1'], lineLabel: '부산 1호선', region: 'BUSAN_STATION', roadIndex: 7.5, keywords: ['초량', '초량역', 'ㅊㄹ'] },
+
+    // [DAEYEON: 대연/남구]
+    { id: 'ST-BS-DY', name: '대연역', subName: '부산고려병원·유엔평화공원 (2호선)', lat: 35.13545, lng: 129.09210, arsId: '07016', type: 'SUBWAY_BUS', lines: ['2'], lineLabel: '부산 2호선', region: 'DAEYEON', roadIndex: 5, keywords: ['대연', '대연역', '고려병원', 'ㄷㅇ'] },
+    { id: 'ST-BS-KSU', name: '경성대·부경대역', subName: '경성대학교/대학로 (2호선)', lat: 35.13654, lng: 129.09794, arsId: '07013', type: 'SUBWAY_BUS', lines: ['2'], lineLabel: '부산 2호선', region: 'DAEYEON', roadIndex: 4, keywords: ['경성대', '부경대', '경대', 'ㄱㅅㄷ'] },
+    { id: 'ST-BS-MG', name: '못골역', subName: '남구청·못골시장 (2호선)', lat: 35.13605, lng: 129.08470, arsId: '07165', type: 'SUBWAY_BUS', lines: ['2'], lineLabel: '부산 2호선', region: 'DAEYEON', roadIndex: 6, keywords: ['못골', '못골역', '남구청', 'ㅁㄱ'] },
+    { id: 'ST-BS-BIFC', name: '국제금융센터·부산은행역', subName: '문현금융단지 BIFC (2호선)', lat: 35.14750, lng: 129.06470, arsId: '07067', type: 'SUBWAY_BUS', lines: ['2'], lineLabel: '부산 2호선', region: 'DAEYEON', roadIndex: 9, keywords: ['BIFC', '부산은행역', '금융센터', 'ㅂㅇㅎ'] },
+    { id: 'ST-BS-PKNU', name: '부경대대연캠퍼스', subName: '부경대학교 정문 (버스)', lat: 35.13288, lng: 129.10128, arsId: '07011', type: 'BUS', lines: ['BUS'], lineLabel: '시내버스 24, 138번', region: 'DAEYEON', roadIndex: 4.1, keywords: ['부경대캠퍼스', 'ㅂㄱㄷ'] },
+    { id: 'ST-BS-ORYK', name: '오륙도스카이워크', subName: '오륙도 해맞이공원 (버스)', lat: 35.10127, lng: 129.12192, arsId: '07182', type: 'BUS', lines: ['BUS'], lineLabel: '시내버스 24번', region: 'DAEYEON', roadIndex: 4.3, keywords: ['오륙도', '스카이워크', 'ㅇㄹㄷ'] },
+
+    // [DONGNAE: 동래/연제]
+    { id: 'ST-BS-YS', name: '연산역', subName: '1·3호선 환승 허브 (연산교차로)', lat: 35.18610, lng: 129.08150, arsId: '13010', type: 'SUBWAY_BUS', lines: ['1', '3'], lineLabel: '1호선·3호선', region: 'DONGNAE', roadIndex: 15, keywords: ['연산', '연산역', 'ㅇㅅ'] },
+    { id: 'ST-BS-CD', name: '교대역', subName: '1호선·동해선 환승역', lat: 35.19630, lng: 129.08000, arsId: '13020', type: 'SUBWAY_BUS', lines: ['1', 'DONGHAE'], lineLabel: '1호선·동해선', region: 'DONGNAE', roadIndex: 16, keywords: ['교대', '교대역', '부산교대', 'ㄱㄷ'] },
+    { id: 'ST-BS-DNR', name: '동래역', subName: '동래 메가마트·상권 (1·4호선)', lat: 35.20570, lng: 129.07830, arsId: '06010', type: 'SUBWAY_BUS', lines: ['1'], lineLabel: '부산 1호선', region: 'DONGNAE', roadIndex: 17, keywords: ['동래', '동래역', 'ㄷㄹ'] },
+    { id: 'ST-BS-SJ', name: '사직역', subName: '사직야구장·아시아드 (3호선)', lat: 35.19880, lng: 129.06490, arsId: '13035', type: 'SUBWAY_BUS', lines: ['3'], lineLabel: '부산 3호선', region: 'DONGNAE', roadIndex: 16.5, keywords: ['사직', '사직역', '야구장', 'ㅅㅈ'] },
+
+    // [PNU: 부산대/금정]
+    { id: 'ST-BS-PNU', name: '부산대역', subName: '부산대학교 젊음의거리 (1호선)', lat: 35.22970, lng: 129.08940, arsId: '11005', type: 'SUBWAY_BUS', lines: ['1'], lineLabel: '부산 1호선', region: 'PNU', roadIndex: 19, keywords: ['부산대', '부산대역', 'ㅂㅅㄷ'] },
+    { id: 'ST-BS-ONC', name: '온천장역', subName: '허심청·온천장 (1호선)', lat: 35.22050, lng: 129.08630, arsId: '06025', type: 'SUBWAY_BUS', lines: ['1'], lineLabel: '부산 1호선', region: 'PNU', roadIndex: 18, keywords: ['온천장', '허심청', 'ㅇㅊㅈ'] },
+    { id: 'ST-BS-NP', name: '노포역', subName: '부산종합버스터미널 종점 (1호선)', lat: 35.28460, lng: 129.09490, arsId: '11030', type: 'SUBWAY_BUS', lines: ['1'], lineLabel: '부산 1호선', region: 'PNU', roadIndex: 21, keywords: ['노포', '노포역', '버스터미널', 'ㄴㅍ'] },
+
+    // [SASANG: 사상/서부산]
+    { id: 'ST-BS-SS', name: '사상역', subName: '서부시외버스터미널 (2호선·경전철)', lat: 35.16230, lng: 128.98470, arsId: '15010', type: 'SUBWAY_BUS', lines: ['2'], lineLabel: '2호선·경전철', region: 'SASANG', roadIndex: 100, keywords: ['사상', '사상역', '서부터미널', 'ㅅㅅ'] },
+    { id: 'ST-BS-JR', name: '주례역', subName: '동서대학교·경남정보대 (2호선)', lat: 35.15060, lng: 129.01350, arsId: '15005', type: 'SUBWAY_BUS', lines: ['2'], lineLabel: '부산 2호선', region: 'SASANG', roadIndex: 101, keywords: ['주례', '주례역', 'ㅈㄹ'] },
+
+    // [DEOKCHEON: 덕천/북구]
+    { id: 'ST-BS-DC', name: '덕천역', subName: '2·3호선 환승역 (덕천젊음의거리)', lat: 35.21040, lng: 128.99900, arsId: '08010', type: 'SUBWAY_BUS', lines: ['2', '3'], lineLabel: '2호선·3호선', region: 'DEOKCHEON', roadIndex: 105, keywords: ['덕천', '덕천역', 'ㄷㅊ'] },
+    { id: 'ST-BS-HM', name: '화명역', subName: '화명생태공원·롯데마트 (2호선)', lat: 35.23600, lng: 129.01370, arsId: '08020', type: 'SUBWAY_BUS', lines: ['2'], lineLabel: '부산 2호선', region: 'DEOKCHEON', roadIndex: 106, keywords: ['화명', '화명역', 'ㅎㅁ'] },
+    { id: 'ST-BS-GP', name: '구포역', subName: '경부선 KTX 구포역 환승 (3호선)', lat: 35.20650, lng: 128.99580, arsId: '08005', type: 'SUBWAY_BUS', lines: ['3'], lineLabel: '부산 3호선', region: 'DEOKCHEON', roadIndex: 104, keywords: ['구포', '구포역', 'ㄱㅍ'] },
+
+    // [HADAN: 하단/다대포]
+    { id: 'ST-BS-HAD', name: '하단역', subName: '동아대학교·을숙도 입구 (1호선)', lat: 35.10610, lng: 128.96680, arsId: '10010', type: 'SUBWAY_BUS', lines: ['1'], lineLabel: '부산 1호선', region: 'HADAN', roadIndex: 200, keywords: ['하단', '하단역', '동아대', 'ㅎㄷ'] },
+    { id: 'ST-BS-DDP', name: '다대포해수욕장역', subName: '꿈의낙조분수·몰운대 (1호선)', lat: 35.04830, lng: 128.96520, arsId: '10030', type: 'SUBWAY_BUS', lines: ['1'], lineLabel: '부산 1호선', region: 'HADAN', roadIndex: 205, keywords: ['다대포', '몰운대', '낙조분수', 'ㄷㄷㅍ'] },
+
+    // [GIJANG: 기장/오시리아]
+    { id: 'ST-BS-OSR', name: '오시리아역', subName: '롯데월드·이케아·동부산아울렛 (동해선)', lat: 35.19320, lng: 129.21200, arsId: '16010', type: 'SUBWAY_BUS', lines: ['DONGHAE'], lineLabel: '동해선 전철', region: 'GIJANG', roadIndex: 300, keywords: ['오시리아', '롯데월드', '이케아', 'ㅇㅅㄹㅇ'] },
+    { id: 'ST-BS-GIJ', name: '기장역', subName: '기장시장 대게골목 (동해선)', lat: 35.24430, lng: 129.21730, arsId: '16020', type: 'SUBWAY_BUS', lines: ['DONGHAE'], lineLabel: '동해선 전철', region: 'GIJANG', roadIndex: 305, keywords: ['기장', '기장역', 'ㄱㅈ'] },
+    { id: 'ST-BS-ILG', name: '일광역', subName: '일광해수욕장·카페거리 (동해선)', lat: 35.26570, lng: 129.23320, arsId: '16030', type: 'SUBWAY_BUS', lines: ['DONGHAE'], lineLabel: '동해선 전철', region: 'GIJANG', roadIndex: 310, keywords: ['일광', '일광역', 'ㅇㄱ'] }
   ];
 
-  // 실제 도로망 곡선 궤적 테이블 (수영로 ~ 중앙대로 전 구간 도로 상세 좌표)
+  // 노선별 정거장 순서 리스트
+  const SUBWAY_LINE_1 = [
+    { id: 'ST-BS-DDP', name: '다대포해수욕장', lat: 35.0483, lng: 128.9652 },
+    { id: 'ST-BS-HAD', name: '하단역', lat: 35.1061, lng: 128.9668 },
+    { id: 'ST-BS-JGC', name: '자갈치역', lat: 35.0975, lng: 129.0267 },
+    { id: 'ST-BS-NPST', name: '남포역', lat: 35.0979, lng: 129.0348 },
+    { id: 'ST-BS-BSST', name: '부산역', lat: 35.1152, lng: 129.0422 },
+    { id: 'ST-BS-CR', name: '초량역', lat: 35.1205, lng: 129.0440 },
+    { id: 'ST-BS-BNG', name: '범내골역', lat: 35.1481, lng: 129.0597 },
+    { id: 'ST-BS-SMN', name: '서면역', lat: 35.1578, lng: 129.0592 },
+    { id: 'ST-BS-YJ', name: '양정역', lat: 35.1730, lng: 129.0713 },
+    { id: 'ST-BS-YS', name: '연산역', lat: 35.1861, lng: 129.0815 },
+    { id: 'ST-BS-CD', name: '교대역', lat: 35.1963, lng: 129.0800 },
+    { id: 'ST-BS-DNR', name: '동래역', lat: 35.2057, lng: 129.0783 },
+    { id: 'ST-BS-ONC', name: '온천장역', lat: 35.2205, lng: 129.0863 },
+    { id: 'ST-BS-PNU', name: '부산대역', lat: 35.2297, lng: 129.0894 },
+    { id: 'ST-BS-NP', name: '노포역', lat: 35.2846, lng: 129.0949 }
+  ];
+
+  const SUBWAY_LINE_2 = [
+    { id: 'ST-BS-JS', name: '장산역', lat: 35.1699, lng: 129.1769 },
+    { id: 'ST-BS-HUD', name: '해운대역', lat: 35.1631, lng: 129.1585 },
+    { id: 'ST-BS-DB', name: '동백역', lat: 35.1601, lng: 129.1438 },
+    { id: 'ST-BS-BX', name: '벡스코역', lat: 35.1689, lng: 129.1389 },
+    { id: 'ST-BS-CT', name: '센텀시티역', lat: 35.1689, lng: 129.1317 },
+    { id: 'ST-BS-SY', name: '수영역', lat: 35.1610, lng: 129.1165 },
+    { id: 'ST-BS-GA', name: '광안역', lat: 35.1525, lng: 129.1155 },
+    { id: 'ST-BS-GRS', name: '금련산역', lat: 35.1465, lng: 129.1128 },
+    { id: 'ST-BS-NC', name: '남천역', lat: 35.1415, lng: 129.1085 },
+    { id: 'ST-BS-KSU', name: '경성대·부경대역', lat: 35.13654, lng: 129.09794 },
+    { id: 'ST-BS-DY', name: '대연역', lat: 35.13545, lng: 129.09210 },
+    { id: 'ST-BS-MG', name: '못골역', lat: 35.13605, lng: 129.08470 },
+    { id: 'ST-BS-BIFC', name: '국제금융센터역', lat: 35.1475, lng: 129.0647 },
+    { id: 'ST-BS-JP', name: '전포역', lat: 35.1542, lng: 129.0632 },
+    { id: 'ST-BS-SMN', name: '서면역', lat: 35.1578, lng: 129.0592 },
+    { id: 'ST-BS-BA', name: '부암역', lat: 35.1598, lng: 129.0505 },
+    { id: 'ST-BS-JR', name: '주례역', lat: 35.1506, lng: 129.0135 },
+    { id: 'ST-BS-SS', name: '사상역', lat: 35.1623, lng: 128.9847 },
+    { id: 'ST-BS-DC', name: '덕천역', lat: 35.2104, lng: 128.9990 },
+    { id: 'ST-BS-HM', name: '화명역', lat: 35.2360, lng: 129.0137 }
+  ];
+
+  const SUBWAY_LINE_3 = [
+    { id: 'ST-BS-SY', name: '수영역', lat: 35.1610, lng: 129.1165 },
+    { id: 'ST-BS-MM', name: '망미역', lat: 35.1718, lng: 129.1082 },
+    { id: 'ST-BS-YS', name: '연산역', lat: 35.1861, lng: 129.0815 },
+    { id: 'ST-BS-SJ', name: '사직역', lat: 35.1988, lng: 129.0649 },
+    { id: 'ST-BS-DC', name: '덕천역', lat: 35.2104, lng: 128.9990 },
+    { id: 'ST-BS-GP', name: '구포역', lat: 35.2065, lng: 128.9958 }
+  ];
+
+  const SUBWAY_LINE_DONGHAE = [
+    { id: 'ST-BS-CD', name: '교대역', lat: 35.1963, lng: 129.0800 },
+    { id: 'ST-BS-BX', name: '벡스코역', lat: 35.1689, lng: 129.1389 },
+    { id: 'ST-BS-OSR', name: '오시리아역', lat: 35.1932, lng: 129.2120 },
+    { id: 'ST-BS-GIJ', name: '기장역', lat: 35.2443, lng: 129.2173 },
+    { id: 'ST-BS-ILG', name: '일광역', lat: 35.2657, lng: 129.2332 }
+  ];
+
+  function getLineList(lineKey) {
+    if (lineKey === '1') return SUBWAY_LINE_1;
+    if (lineKey === '2') return SUBWAY_LINE_2;
+    if (lineKey === '3') return SUBWAY_LINE_3;
+    if (lineKey === 'DONGHAE') return SUBWAY_LINE_DONGHAE;
+    return SUBWAY_LINE_2;
+  }
+
+  function getLineName(lineKey) {
+    if (lineKey === '1') return '1호선';
+    if (lineKey === '2') return '2호선';
+    if (lineKey === '3') return '3호선';
+    if (lineKey === 'DONGHAE') return '동해선';
+    return '지하철';
+  }
+
+  function sliceLineStations(lineArr, stA, stB) {
+    let idxA = lineArr.findIndex(s => s.id === stA.id || s.name === stA.name);
+    let idxB = lineArr.findIndex(s => s.id === stB.id || s.name === stB.name);
+
+    if (idxA === -1) idxA = 0;
+    if (idxB === -1) idxB = lineArr.length - 1;
+
+    if (idxA <= idxB) {
+      return lineArr.slice(idxA, idxB + 1);
+    } else {
+      return lineArr.slice(idxB, idxA + 1).reverse();
+    }
+  }
+
+  // 실제 도로망 곡선 궤적 테이블 (부산 전역 주요 간선축 망라)
   const MASTER_ROAD_PATH = [
-    // 수영역 -> 광안역 (수영로)
-    [35.16100, 129.11650],
-    [35.15850, 129.11610],
-    [35.15550, 129.11580],
-    [35.15250, 129.11550], // 광안역
-    // 광안역 -> 금련산역
-    [35.14950, 129.11420],
-    [35.14650, 129.11280], // 금련산역
-    // 금련산역 -> 남천역 (수영로)
-    [35.14400, 129.11060],
-    [35.14150, 129.10850], // 남천역
-    // 남천역 -> 경성대부경대역
-    [35.13900, 129.10400],
-    [35.13750, 129.10080],
-    [35.13654, 129.09794], // 경성대·부경대역
-    // 경성대 -> 대연역
-    [35.13600, 129.09500],
-    [35.13545, 129.09210], // 대연역
-    // 대연역 -> 못골역
-    [35.13555, 129.09050],
-    [35.13570, 129.08800],
-    [35.13605, 129.08470], // 못골역
-    // 못골역 -> 지게골역
-    [35.13635, 129.08250],
-    [35.13665, 129.08020],
-    [35.13695, 129.07830],
-    [35.13735, 129.07605], // 지게골역
-    // 지게골역 -> 문현역
-    [35.13765, 129.07400],
-    [35.13805, 129.07120],
-    [35.13840, 129.06880],
-    [35.13865, 129.06730],
-    [35.13885, 129.06640], // 문현교차로
-    // 문현역 -> BIFC (전포대로)
-    [35.13960, 129.06640],
-    [35.14150, 129.06625],
-    [35.14320, 129.06590],
-    [35.14500, 129.06540],
-    [35.14650, 129.06500],
-    [35.14750, 129.06470], // BIFC
-    // BIFC -> 전포역 (전포대로)
-    [35.14920, 129.06420],
-    [35.15120, 129.06380],
-    [35.15420, 129.06320], // 전포역
-    // 전포역 -> 서면역 (동천로/중앙대로)
-    [35.15580, 129.06200],
-    [35.15680, 129.06050],
-    [35.15780, 129.05920], // 서면역
-    // 서면역 -> 부암역 (중앙대로)
-    [35.15880, 129.05500],
-    [35.15980, 129.05050]  // 부암역
-  ];
+    // 1. 다대포 - 하단 (낙동남로)
+    [35.04830, 128.96520], [35.07500, 128.96600], [35.10610, 128.96680], // 하단역
+    // 2. 하단 - 자갈치 - 남포 - 부산역 (구덕로 / 중앙대로)
+    [35.10500, 128.99000], [35.10000, 129.01000], [35.09750, 129.02670], // 자갈치역
+    [35.09790, 129.03480], // 남포역
+    [35.11000, 129.03900], [35.11520, 129.04220], // 부산역
+    [35.12050, 129.04400], [35.13500, 129.05200], [35.14810, 129.05970], // 범내골역
+    [35.15780, 129.05920], // 서면역 (중심 허브)
 
-  // 지하철 2호선 역 순서 좌표 리스트 (본선)
-  const SUBWAY_LINE2_STATIONS = [
-    { id: 'ST-BS-SY', name: '수영역', lat: 35.16100, lng: 129.11650, code: '208' },
-    { id: 'ST-BS-GA', name: '광안역', lat: 35.15250, lng: 129.11550, code: '209' },
-    { id: 'ST-BS-GRS', name: '금련산역', lat: 35.14650, lng: 129.11280, code: '210' },
-    { id: 'ST-BS-NC', name: '남천역', lat: 35.14150, lng: 129.10850, code: '211' },
-    { id: 'ST-BS-KSU', name: '경성대·부경대역', lat: 35.13654, lng: 129.09794, code: '212' },
-    { id: 'ST-BS-DY', name: '대연역', lat: 35.13545, lng: 129.09210, code: '213' },
-    { id: 'ST-BS-MG', name: '못골역', lat: 35.13605, lng: 129.08470, code: '214' },
-    { id: 'ST-BS-JGG', name: '지게골역', lat: 35.13735, lng: 129.07605, code: '215' },
-    { id: 'ST-BS-MH', name: '문현역', lat: 35.13885, lng: 129.06640, code: '216' },
-    { id: 'ST-BS-BIFC', name: '국제금융센터·부산은행역', lat: 35.14750, lng: 129.06470, code: '217' },
-    { id: 'ST-BS-JP', name: '전포역', lat: 35.15420, lng: 129.06320, code: '218' },
-    { id: 'ST-BS-SMN', name: '서면역', lat: 35.15780, lng: 129.05920, code: '219' },
-    { id: 'ST-BS-BA', name: '부암역', lat: 35.15980, lng: 129.05050, code: '220' }
+    // 3. 서면 - 양정 - 연산 - 교대 - 동래 - 온천장 - 부산대 (중앙대로 북축)
+    [35.17300, 129.07130], // 양정역
+    [35.18610, 129.08150], // 연산역
+    [35.19630, 129.08000], // 교대역
+    [35.20570, 129.07830], // 동래역
+    [35.22050, 129.08630], // 온천장역
+    [35.22970, 129.08940], // 부산대역
+    [35.28460, 129.09490], // 노포역
+
+    // 4. 서면 - 전포 - BIFC - 못골 - 대연 - 경성대 - 남천 - 광안 - 수영 (수영로 동축)
+    [35.15420, 129.06320], // 전포역
+    [35.14750, 129.06470], // BIFC
+    [35.13885, 129.06640], // 문현
+    [35.13605, 129.08470], // 못골역
+    [35.13545, 129.09210], // 대연역
+    [35.13654, 129.09794], // 경성대
+    [35.14150, 129.10850], // 남천역
+    [35.14650, 129.11280], // 금련산역
+    [35.15250, 129.11550], // 광안역
+    [35.16100, 129.11650], // 수영역
+
+    // 5. 수영 - 센텀시티 - 벡스코 - 동백 - 해운대 - 장산 (해운대로)
+    [35.16890, 129.13170], // 센텀시티역
+    [35.16890, 129.13890], // 벡스코역
+    [35.16010, 129.14380], // 동백역
+    [35.16310, 129.15850], // 해운대역
+    [35.16990, 129.17690], // 장산역
+
+    // 6. 해운대 - 송정 - 오시리아 - 기장 (기장대로)
+    [35.18520, 129.19960], // 송정
+    [35.19320, 129.21200], // 오시리아역
+    [35.24430, 129.21730], // 기장역
+    [35.26570, 129.23320], // 일광역
+
+    // 7. 서면 - 부암 - 주례 - 사상 - 덕천 - 화명 (가야대로 / 백양대로 / 낙동대로)
+    [35.15980, 129.05050], // 부암역
+    [35.15060, 129.01350], // 주례역
+    [35.16230, 128.98470], // 사상역
+    [35.20650, 128.99580], // 구포역
+    [35.21040, 128.99900], // 덕천역
+    [35.23600, 129.01370]  // 화명역
   ];
 
   /**
@@ -1914,7 +2123,6 @@ document.addEventListener('DOMContentLoaded', () => {
   function buildDynamicRoadPath(originSt, destSt) {
     if (!originSt || !destSt) return MASTER_ROAD_PATH;
 
-    // 가장 가까운 마스터 도로점 인덱스 찾기
     function findClosestRoadIdx(st) {
       let minD = Infinity;
       let minIdx = 0;
@@ -1939,8 +2147,7 @@ document.addEventListener('DOMContentLoaded', () => {
       path = MASTER_ROAD_PATH.slice(endIdx, startIdx + 1).reverse();
     }
 
-    // 출발/도착점 정확히 핀과 일치하도록 양 끝점 보정
-    if (path.length === 0) {
+    if (path.length <= 1) {
       path = [[originSt.lat, originSt.lng], [destSt.lat, destSt.lng]];
     } else {
       path[0] = [originSt.lat, originSt.lng];
@@ -1950,24 +2157,105 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /**
-   * 출발역과 도착역 사이의 지하철 선로 궤적 및 역 목록 생성
+   * 부산 전역 지하철 환승 라우팅 엔진 (직통 및 1회 환승 자동 탐색)
    */
   function buildDynamicSubwayPath(originSt, destSt) {
-    let sIdx = SUBWAY_LINE2_STATIONS.findIndex(s => s.id === originSt.id || s.name === originSt.name);
-    let eIdx = SUBWAY_LINE2_STATIONS.findIndex(s => s.id === destSt.id || s.name === destSt.name);
-
-    if (sIdx === -1) sIdx = 5; // 대연역
-    if (eIdx === -1) eIdx = 11; // 서면역
-
-    let stationsSlice = [];
-    if (sIdx <= eIdx) {
-      stationsSlice = SUBWAY_LINE2_STATIONS.slice(sIdx, eIdx + 1);
-    } else {
-      stationsSlice = SUBWAY_LINE2_STATIONS.slice(eIdx, sIdx + 1).reverse();
+    if (!originSt || !destSt) {
+      return {
+        isTransfer: false,
+        stations: SUBWAY_LINE_2.slice(5, 12),
+        coords: SUBWAY_LINE_2.slice(5, 12).map(s => [s.lat, s.lng]),
+        timeMins: 15,
+        lineFromName: '2호선',
+        lineToName: '2호선'
+      };
     }
 
-    const coords = stationsSlice.map(s => [s.lat, s.lng]);
-    return { stations: stationsSlice, coords: coords };
+    const oLines = (originSt.lines || ['2']).filter(l => l !== 'BUS');
+    const dLines = (destSt.lines || ['2']).filter(l => l !== 'BUS');
+    const commonLines = oLines.filter(l => dLines.includes(l));
+
+    // 1. 직통 가능한 경우 (동일 노선)
+    if (commonLines.length > 0) {
+      const lineKey = commonLines[0];
+      const lineArr = getLineList(lineKey);
+      const sliced = sliceLineStations(lineArr, originSt, destSt);
+      const timeMins = Math.max(3, Math.round(sliced.length * 2.2));
+      return {
+        isTransfer: false,
+        transfers: 0,
+        transferStation: null,
+        lineFrom: lineKey,
+        lineTo: lineKey,
+        lineFromName: getLineName(lineKey),
+        lineToName: getLineName(lineKey),
+        stations: sliced,
+        coords: sliced.map(s => [s.lat, s.lng]),
+        timeMins: timeMins
+      };
+    }
+
+    // 2. 환승 1회 경로 탐색 (핵심 환승 허브 매칭)
+    const transferHubs = [
+      { id: 'ST-BS-SMN', lines: ['1', '2'], name: '서면역' },
+      { id: 'ST-BS-YS', lines: ['1', '3'], name: '연산역' },
+      { id: 'ST-BS-CD', lines: ['1', 'DONGHAE'], name: '교대역' },
+      { id: 'ST-BS-BX', lines: ['2', 'DONGHAE'], name: '벡스코역' },
+      { id: 'ST-BS-SY', lines: ['2', '3'], name: '수영역' },
+      { id: 'ST-BS-DC', lines: ['2', '3'], name: '덕천역' }
+    ];
+
+    let chosenHubInfo = null;
+    let chosenLine1 = oLines[0] || '2';
+    let chosenLine2 = dLines[0] || '1';
+
+    for (const ol of oLines) {
+      for (const dl of dLines) {
+        const found = transferHubs.find(h => h.lines.includes(ol) && h.lines.includes(dl));
+        if (found) {
+          chosenHubInfo = found;
+          chosenLine1 = ol;
+          chosenLine2 = dl;
+          break;
+        }
+      }
+      if (chosenHubInfo) break;
+    }
+
+    // 환승 허브를 못 찾은 경우 기본 허브(서면)로 폴백
+    if (!chosenHubInfo) {
+      chosenHubInfo = transferHubs[0];
+      chosenLine1 = oLines[0] || '2';
+      chosenLine2 = dLines[0] || '1';
+    }
+
+    const hubStation = ALL_STATIONS_MASTER.find(s => s.id === chosenHubInfo.id) || {
+      id: chosenHubInfo.id,
+      name: chosenHubInfo.name,
+      lat: 35.1578,
+      lng: 129.0592
+    };
+
+    // 구간 1 (출발역 -> 환승역)
+    const leg1 = sliceLineStations(getLineList(chosenLine1), originSt, hubStation);
+    // 구간 2 (환승역 -> 도착역)
+    const leg2 = sliceLineStations(getLineList(chosenLine2), hubStation, destSt);
+
+    const mergedStations = [...leg1, ...leg2.slice(1)];
+    const totalMins = Math.max(6, Math.round(mergedStations.length * 2.2 + 4)); // 환승 4분 포함
+
+    return {
+      isTransfer: true,
+      transfers: 1,
+      transferStation: hubStation,
+      lineFrom: chosenLine1,
+      lineTo: chosenLine2,
+      lineFromName: getLineName(chosenLine1),
+      lineToName: getLineName(chosenLine2),
+      stations: mergedStations,
+      coords: mergedStations.map(s => [s.lat, s.lng]),
+      timeMins: totalMins
+    };
   }
 
   /**
@@ -2033,7 +2321,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const initialSubwayCoords = (state.activeSubwayCoords && state.activeSubwayCoords.length > 0)
       ? state.activeSubwayCoords
-      : SUBWAY_LINE2_STATIONS.slice(5, 12).map(s => [s.lat, s.lng]);
+      : SUBWAY_LINE_2.slice(5, 12).map(s => [s.lat, s.lng]);
 
     leafletMap = L.map(el.mapContainer, {
       center: [35.1465, 129.0740],
@@ -2140,24 +2428,30 @@ document.addEventListener('DOMContentLoaded', () => {
       subStations.forEach((st, idx) => {
         const isStart = (idx === 0);
         const isEnd = (idx === subStations.length - 1);
-        if (showAllStops || isStart || isEnd) {
+        const isTransferStation = subwayData.isTransfer && subwayData.transferStation && (st.id === subwayData.transferStation.id || st.name === subwayData.transferStation.name);
+
+        if (showAllStops || isStart || isEnd || isTransferStation) {
           let pinHtml = `<div class="leaflet-subway-pin"></div>`;
           if (isStart) pinHtml = `<div class="leaflet-current-pin" title="탑승역"></div>`;
           else if (isEnd) pinHtml = `<div class="leaflet-dest-pin" title="도착역"></div>`;
+          else if (isTransferStation) pinHtml = `<div class="leaflet-station-pin" style="background:#F59E0B; border:2px solid #FFF;" title="환승역"></div>`;
 
           const customIcon = L.divIcon({
             className: 'custom-station-wrapper',
             html: pinHtml,
-            iconSize: [16, 16],
-            iconAnchor: [8, 8]
+            iconSize: isTransferStation ? [20, 20] : [16, 16],
+            iconAnchor: isTransferStation ? [10, 10] : [8, 8]
           });
 
           const marker = L.marker([st.lat, st.lng], { icon: customIcon }).addTo(stationMarkersGroup);
-          marker.bindTooltip(`<b>${st.name}</b>`, {
+          const tooltipText = isTransferStation
+            ? `<b>🔄 ${st.name} (환승)</b>`
+            : `<b>${st.name}</b>`;
+          marker.bindTooltip(tooltipText, {
             permanent: true,
             direction: 'bottom',
             offset: [0, 8],
-            className: 'subway-tooltip'
+            className: isTransferStation ? 'subway-tooltip transfer-tooltip' : 'subway-tooltip'
           });
         }
       });
@@ -2166,11 +2460,17 @@ document.addEventListener('DOMContentLoaded', () => {
       if (subwayData.coords.length >= 2) {
         const midIdx = Math.floor(subwayData.coords.length / 2);
         const trainCoord = subwayData.coords[midIdx];
+        const nextStName = subStations[midIdx] ? subStations[midIdx].name : '';
+        const prevStName = subStations[Math.max(0, midIdx - 1)] ? subStations[Math.max(0, midIdx - 1)].name : '';
+        const beaconText = subwayData.isTransfer
+          ? `🚇 환승 연계 전동차 (${prevStName}➔${nextStName})`
+          : `🚇 ${subwayData.lineFromName} 전동차 (${prevStName}➔${nextStName})`;
+
         const subwayTrainIcon = L.divIcon({
           className: 'subway-beacon-wrapper',
-          html: `<div class="leaflet-subway-beacon">🚇 2호선 전동차 (${subStations[Math.max(0, midIdx - 1)].name}➔${subStations[midIdx].name})</div>`,
-          iconSize: [150, 24],
-          iconAnchor: [75, 12]
+          html: `<div class="leaflet-subway-beacon">${beaconText}</div>`,
+          iconSize: [160, 24],
+          iconAnchor: [80, 12]
         });
         L.marker(trainCoord, { icon: subwayTrainIcon }).addTo(liveBusMarkersGroup);
       }

@@ -110,6 +110,28 @@
 
       <!-- T-MAP STYLE TRANSIT NAVIGATION SEARCH BAR -->
       <section class="nav-route-card">
+        <!-- BUSAN REGION SELECTOR (부산 12대 주요 권역 선택 바) -->
+        <div class="region-selector-container">
+          <div class="region-selector-header">
+            <span class="region-selector-title">📍 부산 지역 선택 (1·2·3호선·동해선 전역)</span>
+            <span class="region-selected-label" id="selectedRegionLabel">전체 부산</span>
+          </div>
+          <div class="region-chips-scroll" id="regionChipsContainer">
+            <button class="region-chip active" data-region="ALL" title="부산 전역 노선">전체 부산</button>
+            <button class="region-chip" data-region="SEOMYEON" data-center="서면역" title="서면·전포·부암">🏙️ 서면/진구</button>
+            <button class="region-chip" data-region="HAEUNDAE" data-center="해운대역" title="해운대·센텀·마린·장산">🌊 해운대/센텀</button>
+            <button class="region-chip" data-region="GWANGAN" data-center="광안역" title="광안리·수영·민락·남천">🏖️ 광안/수영</button>
+            <button class="region-chip" data-region="BUSAN_STATION" data-center="부산역" title="부산역·남포동·자갈치·중앙동">🚆 부산역/남포</button>
+            <button class="region-chip" data-region="DAEYEON" data-center="대연역" title="대연·경성대·부경대·용호">🎓 대연/남구</button>
+            <button class="region-chip" data-region="DONGNAE" data-center="동래역" title="동래·연산·사직·온천장">🌳 동래/연제</button>
+            <button class="region-chip" data-region="PNU" data-center="부산대역" title="부산대·금정·장전·노포">📚 부산대/금정</button>
+            <button class="region-chip" data-region="SASANG" data-center="사상역" title="사상·서부산·공항경전철">✈️ 사상/서부산</button>
+            <button class="region-chip" data-region="DEOKCHEON" data-center="덕천역" title="덕천·북구·화명·구포">🚇 덕천/북구</button>
+            <button class="region-chip" data-region="HADAN" data-center="하단역" title="하단·괴정·신평·다대포">🌅 하단/다대포</button>
+            <button class="region-chip" data-region="GIJANG" data-center="오시리아역" title="기장·오시리아·롯데월드">🎡 기장/오시리아</button>
+          </div>
+        </div>
+
         <div class="nav-inputs-wrapper">
           <div class="nav-dots-col">
             <div class="dot-origin"></div>
@@ -377,15 +399,21 @@
       </div>
     </div>
 
-    <!-- SECTION 4: 시뮬레이션 위치 변경 -->
-    <div class="drawer-section-label">위치 시뮬레이션 프리셋</div>
+    <!-- SECTION 4: 부산 전역 위치 시뮬레이션 프리셋 -->
+    <div class="drawer-section-label">부산 권역별 중심역 바로가기</div>
     <div class="preset-buttons-grid">
-      <button class="btn-preset-chip active" data-coords="35.13550,129.09200">대연역</button>
-      <button class="btn-preset-chip" data-coords="35.13750,129.10050">경성대역</button>
-      <button class="btn-preset-chip" data-coords="35.14150,129.10850">남천역</button>
-      <button class="btn-preset-chip" data-coords="35.15250,129.11550">광안역</button>
-      <button class="btn-preset-chip" data-coords="35.16100,129.11650">수영역</button>
-      <button class="btn-preset-chip" data-coords="35.15780,129.05920">서면역</button>
+      <button class="btn-preset-chip active" data-coords="35.15780,129.05920">서면역 (진구)</button>
+      <button class="btn-preset-chip" data-coords="35.16310,129.16360">해운대역</button>
+      <button class="btn-preset-chip" data-coords="35.15250,129.11550">광안역 (수영구)</button>
+      <button class="btn-preset-chip" data-coords="35.11520,129.04220">부산역 (동구)</button>
+      <button class="btn-preset-chip" data-coords="35.09790,129.03480">남포역 (중구)</button>
+      <button class="btn-preset-chip" data-coords="35.13550,129.09200">대연역 (남구)</button>
+      <button class="btn-preset-chip" data-coords="35.20560,129.07850">동래역 (동래구)</button>
+      <button class="btn-preset-chip" data-coords="35.22990,129.08940">부산대역 (금정구)</button>
+      <button class="btn-preset-chip" data-coords="35.16270,128.98540">사상역 (서부산)</button>
+      <button class="btn-preset-chip" data-coords="35.21040,128.99650">덕천역 (북구)</button>
+      <button class="btn-preset-chip" data-coords="35.10620,128.96660">하단역 (사하구)</button>
+      <button class="btn-preset-chip" data-coords="35.19720,129.21300">오시리아역 (기장)</button>
     </div>
   </div>
 

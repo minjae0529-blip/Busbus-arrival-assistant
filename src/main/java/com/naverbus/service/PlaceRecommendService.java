@@ -87,17 +87,42 @@ public class PlaceRecommendService {
     }
 
     private void initStationCoords() {
+        // 서면 / 진구
         stationCoords.put("ST-BS-SMN", new double[]{35.15517, 129.05925});
+        stationCoords.put("ST-BS-JP", new double[]{35.15420, 129.06320});
         stationCoords.put("ST-BS-BIFC", new double[]{35.14548, 129.06705});
         stationCoords.put("ST-BS-MH", new double[]{35.13959, 129.06748});
+        stationCoords.put("ST-BS-BA", new double[]{35.15980, 129.05050});
+        // 대연 / 남구
         stationCoords.put("ST-BS-JGG", new double[]{35.13508, 129.07565});
         stationCoords.put("ST-BS-MG", new double[]{35.13484, 129.08411});
         stationCoords.put("ST-BS-DY", new double[]{35.13563, 129.09516});
         stationCoords.put("ST-BS-KSU", new double[]{35.13654, 129.09794});
         stationCoords.put("ST-BS-PKNU", new double[]{35.13288, 129.10128});
+        // 광안 / 수영
         stationCoords.put("ST-BS-NC", new double[]{35.14150, 129.10850});
+        stationCoords.put("ST-BS-GRS", new double[]{35.14650, 129.11280});
         stationCoords.put("ST-BS-GA", new double[]{35.15250, 129.11550});
         stationCoords.put("ST-BS-SY", new double[]{35.16100, 129.11650});
+        // 해운대 / 센텀
+        stationCoords.put("ST-BS-HUD", new double[]{35.16310, 129.16360});
+        stationCoords.put("ST-BS-CENTUM", new double[]{35.16880, 129.13150});
+        stationCoords.put("ST-BS-BEXCO", new double[]{35.16850, 129.13880});
+        stationCoords.put("ST-BS-JS", new double[]{35.16980, 129.17700});
+        // 부산역 / 남포 / 중구
+        stationCoords.put("ST-BS-BSST", new double[]{35.11520, 129.04220});
+        stationCoords.put("ST-BS-NPST", new double[]{35.09790, 129.03480});
+        stationCoords.put("ST-BS-JGC", new double[]{35.09820, 129.02700});
+        // 동래 / 연제 / 금정
+        stationCoords.put("ST-BS-DNR", new double[]{35.20560, 129.07850});
+        stationCoords.put("ST-BS-YS", new double[]{35.18620, 129.08200});
+        stationCoords.put("ST-BS-PNU", new double[]{35.22990, 129.08940});
+        // 서부산 / 북구 / 사하 / 기장
+        stationCoords.put("ST-BS-SASANG", new double[]{35.16270, 128.98540});
+        stationCoords.put("ST-BS-DC", new double[]{35.21040, 128.99650});
+        stationCoords.put("ST-BS-HD", new double[]{35.10620, 128.96660});
+        stationCoords.put("ST-BS-DDP", new double[]{35.04820, 128.96650});
+        stationCoords.put("ST-BS-OSR", new double[]{35.19720, 129.21300});
     }
 
     private void initDatabase() {
@@ -383,6 +408,236 @@ public class PlaceRecommendService {
         );
         placeDatabase.put("ST-BS-DY", daeyeonPlaces);
         placeDatabase.put("ST-BS-KSU", daeyeonPlaces);
+
+        // 해운대 / 센텀 핫플레이스 (실존 매장)
+        List<RecommendedPlace> haeundaePlaces = Arrays.asList(
+                new RecommendedPlace(
+                        "옵스(OPS) 해운대점 (원조 슈크림빵)",
+                        "카페 · 베이커리",
+                        "부산 3대 베이커리 대표 명물, 바닐라빈 생크림 슈크림과 학원전",
+                        "도보 3분",
+                        1, 4.7, 4820,
+                        "🟢 실존 매장 · 부산 3대 빵집",
+                        "20~40분 대기 추천",
+                        "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=700&auto=format&fit=crop&q=80",
+                        35.16180, 129.16250,
+                        "ALL",
+                        "부산 해운대구 중동1로 31"
+                ),
+                new RecommendedPlace(
+                        "랑데자뷰 해운대점 (오션뷰 감성 카페)",
+                        "카페 · 오션뷰",
+                        "제주 돌담 인테리어와 통유리창 너머 펼쳐지는 해운대 백사장 뷰",
+                        "도보 4분",
+                        2, 4.8, 3540,
+                        "🟢 실존 매장 · 오션뷰 인생샷",
+                        "30~60분 여유 추천",
+                        "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=700&auto=format&fit=crop&q=80",
+                        35.15950, 129.16520,
+                        "ALL",
+                        "부산 해운대구 달맞이길62번길 23 3층"
+                ),
+                new RecommendedPlace(
+                        "해운대 암소갈비집",
+                        "음식점 · 한우 숯불갈비",
+                        "수요미식회 방영 감자사리와 생갈비로 전국적 명성을 지닌 해운대 1등 맛집",
+                        "도보 5분",
+                        3, 4.8, 6210,
+                        "🟢 실존 매장 · 해운대 최고 웨이팅",
+                        "50~80분 식사 추천",
+                        "https://images.unsplash.com/photo-1544025162-d76694265947?w=700&auto=format&fit=crop&q=80",
+                        35.16380, 129.16720,
+                        "FRIEND",
+                        "부산 해운대구 중동2로10번길 325"
+                ),
+                new RecommendedPlace(
+                        "스파랜드 센텀시티 (신세계 프리미엄 온천)",
+                        "놀거리 · 힐링 찜질방",
+                        "천연 온천수 탄산천과 테마 릴렉스룸이 갖춰진 도심 속 힐링 파크",
+                        "센텀역 도보 1분",
+                        4, 4.9, 7890,
+                        "🟢 실존 매장 · 힐링 코스 1위",
+                        "2~3시간 휴식 추천",
+                        "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=700&auto=format&fit=crop&q=80",
+                        35.16880, 129.13150,
+                        "FRIEND",
+                        "부산 해운대구 센텀남대로 35 신세계백화점 센텀시티점 1층"
+                )
+        );
+        placeDatabase.put("ST-BS-HUD", haeundaePlaces);
+        placeDatabase.put("ST-BS-CENTUM", haeundaePlaces);
+        placeDatabase.put("ST-BS-BEXCO", haeundaePlaces);
+        placeDatabase.put("ST-BS-JS", haeundaePlaces);
+
+        // 광안리 / 수영 핫플레이스 (실존 매장)
+        List<RecommendedPlace> gwanganPlaces = Arrays.asList(
+                new RecommendedPlace(
+                        "밀락더마켓 (복합문화 오션 라운지)",
+                        "놀거리 · 오션뷰 문화공간",
+                        "광안대교를 정면으로 바라보며 버스킹과 수제맥주, 푸드를 즐기는 핫플",
+                        "도보 6분",
+                        1, 4.8, 5120,
+                        "🟢 실존 매장 · 광안리 핫플 1위",
+                        "40~80분 구경 추천",
+                        "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=700&auto=format&fit=crop&q=80",
+                        35.15420, 129.12280,
+                        "FRIEND",
+                        "부산 수영구 민락수변로17번길 56"
+                ),
+                new RecommendedPlace(
+                        "톤쇼우 광안점 (프리미엄 돈카츠)",
+                        "음식점 · 일식 돈카츠",
+                        "지리산 흑돼지 특로스카츠와 숯불 훈연 향으로 유명한 전국구 웨이팅 성지",
+                        "도보 4분",
+                        2, 4.9, 8950,
+                        "🟢 실존 매장 · 부산 1위 돈카츠",
+                        "40~70분 식사 추천",
+                        "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=700&auto=format&fit=crop&q=80",
+                        35.15380, 129.11720,
+                        "ALL",
+                        "부산 수영구 광안로49번길 32-1 1층"
+                ),
+                new RecommendedPlace(
+                        "차선책 광안리점 (흑임자 갸또 카페)",
+                        "카페 · 오션뷰 디저트",
+                        "광안대교 파노라마 뷰와 글루텐프리 수제 흑임자 갸또 쇼콜라 전문점",
+                        "도보 3분",
+                        3, 4.7, 3420,
+                        "🟢 실존 매장 · 광안대교 뷰 맛집",
+                        "30~50분 여유 추천",
+                        "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=700&auto=format&fit=crop&q=80",
+                        35.15180, 129.11680,
+                        "ALL",
+                        "부산 수영구 광안해변로 237 3층"
+                )
+        );
+        placeDatabase.put("ST-BS-GA", gwanganPlaces);
+        placeDatabase.put("ST-BS-SY", gwanganPlaces);
+        placeDatabase.put("ST-BS-NC", gwanganPlaces);
+        placeDatabase.put("ST-BS-GRS", gwanganPlaces);
+
+        // 부산역 / 남포동 핫플레이스 (실존 매장)
+        List<RecommendedPlace> busanStationPlaces = Arrays.asList(
+                new RecommendedPlace(
+                        "이재모피자 본점 (남포동 원조)",
+                        "음식점 · 피자 전문점",
+                        "부산 여행객들이 첫 번째로 줄서는 임실치즈 크러스트 피자의 성지",
+                        "도보 4분",
+                        1, 4.9, 9400,
+                        "🟢 실존 매장 · 부산 맛집 1위",
+                        "50~80분 식사 추천",
+                        "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=700&auto=format&fit=crop&q=80",
+                        35.09980, 129.03150,
+                        "FRIEND",
+                        "부산 중구 광복중앙로 31"
+                ),
+                new RecommendedPlace(
+                        "신발원 (부산역 차이나타운 만두)",
+                        "음식점 · 정통 수제만두",
+                        "1951년 개업, 바삭한 군만두와 육즙 가득 고기만두로 유명한 블루리본 노포",
+                        "부산역 도보 2분",
+                        2, 4.8, 6720,
+                        "🟢 실존 매장 · 70년 전통 만두",
+                        "30~50분 식사 추천",
+                        "https://images.unsplash.com/photo-1544025162-d76694265947?w=700&auto=format&fit=crop&q=80",
+                        35.11450, 129.03850,
+                        "ALL",
+                        "부산 동구 대영로243번길 62"
+                ),
+                new RecommendedPlace(
+                        "백화양곱창 (자갈치시장 노포)",
+                        "음식점 · 숯불 양곱창",
+                        "백종원의 3대천왕 방영, 연탄불 석쇠에 구워먹는 자갈치 대표 명물",
+                        "자갈치역 도보 3분",
+                        3, 4.7, 4510,
+                        "🟢 실존 매장 · 노포 분위기 최고",
+                        "50~80분 식사 추천",
+                        "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=700&auto=format&fit=crop&q=80",
+                        35.09750, 129.02680,
+                        "FRIEND",
+                        "부산 중구 자갈치로23번길 6"
+                ),
+                new RecommendedPlace(
+                        "초량1941 (적산가옥 바닐라 우유 카페)",
+                        "카페 · 감성 힐링",
+                        "1941년 건립된 고즈넉한 일본식 가옥에서 마시는 수제 바닐라·홍차 우유",
+                        "도보 7분",
+                        4, 4.7, 3120,
+                        "🟢 실존 매장 · 숲속 레트로 카페",
+                        "30~60분 여유 추천",
+                        "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=700&auto=format&fit=crop&q=80",
+                        35.12280, 129.03220,
+                        "SOLO",
+                        "부산 동구 망양로 533-5"
+                )
+        );
+        placeDatabase.put("ST-BS-BSST", busanStationPlaces);
+        placeDatabase.put("ST-BS-NPST", busanStationPlaces);
+        placeDatabase.put("ST-BS-JGC", busanStationPlaces);
+
+        // 동래 / 부산대 핫플레이스 (실존 매장)
+        List<RecommendedPlace> dongnaePlaces = Arrays.asList(
+                new RecommendedPlace(
+                        "동래할매파전 (부산 무형문화재)",
+                        "음식점 · 정통 동래파전",
+                        "찹쌀 반죽과 싱싱한 해물이 듬뿍 들어간 70년 전통의 부산 향토 음식점",
+                        "도보 5분",
+                        1, 4.7, 4120,
+                        "🟢 실존 매장 · 부산 향토 음식",
+                        "40~70분 식사 추천",
+                        "https://images.unsplash.com/photo-1544025162-d76694265947?w=700&auto=format&fit=crop&q=80",
+                        35.20780, 129.08150,
+                        "FRIEND",
+                        "부산 동래구 명륜로94번길 43-10"
+                ),
+                new RecommendedPlace(
+                        "카페 비윤 (부산대 감성 카페)",
+                        "카페 · 수제 브라우니",
+                        "아늑한 주택 개조 공간과 꾸덕한 초코 브라우니로 유명한 부산대 앞 핫플",
+                        "도보 3분",
+                        2, 4.8, 2350,
+                        "🟢 실존 매장 · 대학로 디저트 1위",
+                        "30~50분 대기 추천",
+                        "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=700&auto=format&fit=crop&q=80",
+                        35.23120, 129.08650,
+                        "ALL",
+                        "부산 금정구 금강로 248-7"
+                )
+        );
+        placeDatabase.put("ST-BS-DNR", dongnaePlaces);
+        placeDatabase.put("ST-BS-YS", dongnaePlaces);
+        placeDatabase.put("ST-BS-PNU", dongnaePlaces);
+
+        // 기장 / 오시리아 핫플레이스 (실존 매장)
+        List<RecommendedPlace> gijangPlaces = Arrays.asList(
+                new RecommendedPlace(
+                        "웨이브온 커피 (기장 바다뷰 로스터리)",
+                        "카페 · 오션뷰 랜드마크",
+                        "한국건축문화대상 수상, 탁 트인 동해 바다를 감상하는 기장 대표 명소",
+                        "도보 5분",
+                        1, 4.9, 12400,
+                        "🟢 실존 매장 · 전국구 오션뷰 카페",
+                        "40~90분 여유 추천",
+                        "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=700&auto=format&fit=crop&q=80",
+                        35.19750, 129.21400,
+                        "FRIEND",
+                        "부산 기장군 장안읍 해맞이로 286"
+                ),
+                new RecommendedPlace(
+                        "롯데월드 어드벤처 부산",
+                        "놀거리 · 테마파크",
+                        "친구들과 함께 롤러코스터와 퍼레이드를 즐기는 부산 최대 놀이공원",
+                        "오시리아역 도보 8분",
+                        2, 4.8, 8760,
+                        "🟢 실존 매장 · 종합 놀이공원",
+                        "2~4시간 플레이 추천",
+                        "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=700&auto=format&fit=crop&q=80",
+                        35.19500, 129.21200,
+                        "FRIEND",
+                        "부산 기장군 기장읍 동부산관광로 42"
+                )
+        );
+        placeDatabase.put("ST-BS-OSR", gijangPlaces);
 
         // OpenStreetMap(OSM) 실제 부산 노드 기반 초기 상권 데이터 시드 (네트워크 지연/제한 시에도 즉시 제공)
         List<RecommendedPlace> osmSeomyeonSeed = Arrays.asList(

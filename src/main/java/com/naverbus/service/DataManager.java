@@ -66,14 +66,31 @@ public class DataManager {
                 new Station("ST-BS-BIFC", "국제금융센터·부산은행역", 35.14548, 129.06705, "07067", List.of("부산2호선"), "전포역 방면"),
                 new Station("ST-BS-JP", "전포역.전포카페거리", 35.15420, 129.06320, "05705", List.of("부산2호선"), "서면역 방면"),
                 new Station("ST-BS-SMN", "서면역.서면지하상가", 35.15517, 129.05925, "05710", List.of("부산1호선", "부산2호선"), "부암역 방면"),
-                new Station("ST-BS-BA", "부암역 (온종합병원)", 35.15980, 129.05050, "05722", List.of("부산2호선"), "가야역 방면")
+                new Station("ST-BS-BA", "부암역 (온종합병원)", 35.15980, 129.05050, "05722", List.of("부산2호선"), "가야역 방면"),
+                // 해운대 / 센텀
+                new Station("ST-BS-HUD", "해운대역 (구남로)", 35.16310, 129.16360, "09102", List.of("부산2호선"), "동백역 방면"),
+                new Station("ST-BS-CENTUM", "센텀시티역 (벡스코)", 35.16880, 129.13150, "09337", List.of("부산2호선", "동해선"), "수영역 방면"),
+                new Station("ST-BS-BEXCO", "벡스코역 (시립미술관)", 35.16850, 129.13880, "09335", List.of("부산2호선", "동해선"), "센텀시티역 방면"),
+                // 부산역 / 남포
+                new Station("ST-BS-BSST", "부산역 (경부선KTX)", 35.11520, 129.04220, "03063", List.of("부산1호선"), "초량역 방면"),
+                new Station("ST-BS-NPST", "남포역 (자갈치)", 35.09790, 129.03480, "01041", List.of("부산1호선"), "중앙역 방면"),
+                new Station("ST-BS-JGC", "자갈치역 (비프광장)", 35.09820, 129.02700, "01035", List.of("부산1호선"), "남포역 방면"),
+                // 동래 / 부산대
+                new Station("ST-BS-DNR", "동래역 (내성교차로)", 35.20560, 129.07850, "06057", List.of("부산1호선", "부산4호선"), "교대역 방면"),
+                new Station("ST-BS-YS", "연산역 (연산교차로)", 35.18620, 129.08200, "13038", List.of("부산1호선", "부산3호선"), "시청역 방면"),
+                new Station("ST-BS-PNU", "부산대역 (부산대학교)", 35.22990, 129.08940, "11032", List.of("부산1호선"), "온천장역 방면"),
+                // 사상 / 덕천 / 하단 / 기장
+                new Station("ST-BS-SASANG", "사상역 (서부터미널)", 35.16270, 128.98540, "15082", List.of("부산2호선", "김해경전철"), "덕포역 방면"),
+                new Station("ST-BS-DC", "덕천역 (구포)", 35.21040, 128.99650, "08012", List.of("부산2호선", "부산3호선"), "수정역 방면"),
+                new Station("ST-BS-HD", "하단역 (을숙도입구)", 35.10620, 128.96660, "10023", List.of("부산1호선"), "당리역 방면"),
+                new Station("ST-BS-OSR", "오시리아역 (롯데월드)", 35.19720, 129.21300, "16045", List.of("동해선"), "송정역 방면")
         );
 
         for (Station s : defaultStations) {
             stationsById.put(s.id(), s);
         }
 
-        // 부산 BIMS 실제 운행 노선 (24, 83, 83-1, 40, 108, 138, 20번)
+        // 부산 BIMS 실제 운행 노선 (24, 83, 83-1, 40, 108, 138, 20, 1001, 1000번)
         List<BusRoute> defaultRoutes = List.of(
                 new BusRoute(
                         "R-BS-24", "24", BusRouteType.TRUNK, "서면역.서면지하상가 방면", "05:00", "23:00", 5,
@@ -88,6 +105,14 @@ public class DataManager {
                         List.of("ST-BS-SY", "ST-BS-GA", "ST-BS-GRS", "ST-BS-NC", "ST-BS-KSU", "ST-BS-DY", "ST-BS-MG", "ST-BS-JGG", "ST-BS-MH", "ST-BS-BIFC", "ST-BS-JP", "ST-BS-SMN")
                 ),
                 new BusRoute(
+                        "R-BS-1001", "1001", BusRouteType.RAPID, "기장·해운대 ↔ 서면 ↔ 부산역 급행", "04:45", "22:40", 8,
+                        List.of("ST-BS-OSR", "ST-BS-HUD", "ST-BS-BEXCO", "ST-BS-CENTUM", "ST-BS-SY", "ST-BS-GA", "ST-BS-SMN", "ST-BS-BSST", "ST-BS-NPST")
+                ),
+                new BusRoute(
+                        "R-BS-1000", "1000", BusRouteType.RAPID, "다대포 ↔ 하단 ↔ 서면 ↔ 부산역 급행", "04:40", "22:30", 9,
+                        List.of("ST-BS-HD", "ST-BS-JGC", "ST-BS-NPST", "ST-BS-BSST", "ST-BS-SMN")
+                ),
+                new BusRoute(
                         "R-BS-108", "108", BusRouteType.TRUNK, "서면·엄궁 방면", "05:00", "22:40", 8,
                         List.of("ST-BS-SY", "ST-BS-GA", "ST-BS-GRS", "ST-BS-NC", "ST-BS-KSU", "ST-BS-DY", "ST-BS-MG", "ST-BS-JGG", "ST-BS-MH", "ST-BS-BIFC", "ST-BS-JP", "ST-BS-SMN")
                 ),
@@ -96,8 +121,8 @@ public class DataManager {
                         List.of("ST-BS-IGD", "ST-BS-PKNU", "ST-BS-KSU", "ST-BS-DY", "ST-BS-MG", "ST-BS-JGG", "ST-BS-MH", "ST-BS-BIFC", "ST-BS-JP", "ST-BS-SMN")
                 ),
                 new BusRoute(
-                        "R-BS-40", "40", BusRouteType.TRUNK, "부산역·구덕운동장 방면", "04:40", "22:45", 8,
-                        List.of("ST-BS-SY", "ST-BS-GA", "ST-BS-GRS", "ST-BS-NC", "ST-BS-KSU", "ST-BS-DY", "ST-BS-MG", "ST-BS-JGG", "ST-BS-MH")
+                        "R-BS-40", "40", BusRouteType.TRUNK, "해운대·부산역·구덕 방면", "04:40", "22:45", 8,
+                        List.of("ST-BS-HUD", "ST-BS-CENTUM", "ST-BS-SY", "ST-BS-GA", "ST-BS-GRS", "ST-BS-NC", "ST-BS-KSU", "ST-BS-DY", "ST-BS-MG", "ST-BS-JGG", "ST-BS-MH", "ST-BS-BSST")
                 ),
                 new BusRoute(
                         "R-BS-20", "20", BusRouteType.BRANCH, "서면·백운포 방면", "05:00", "23:10", 10,
