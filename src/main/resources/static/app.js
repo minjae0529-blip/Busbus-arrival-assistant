@@ -778,20 +778,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const busTime = Math.max(4, Math.round(stopsCount * 2.5 + 3));
 
     let recommendedBus = '24번';
-    if (originName.includes('수영') || originName.includes('광안') || originName.includes('금련산') || originName.includes('남천') || destName.includes('수영') || destName.includes('광안')) {
-      recommendedBus = '83번';
+    if (state.originStation && state.destStation) {
+      const isGijang = (state.originStation.region === 'GIJANG' || state.destStation.region === 'GIJANG');
+      const isHadan = (state.originStation.region === 'HADAN' || state.destStation.region === 'HADAN');
+      const isDongnaePnu = (state.originStation.region === 'DONGNAE' || state.originStation.region === 'PNU' || state.destStation.region === 'DONGNAE' || state.destStation.region === 'PNU');
+      const isHaeundae = (state.originStation.region === 'HAEUNDAE' || state.destStation.region === 'HAEUNDAE');
+
+      if (isGijang || isHaeundae) recommendedBus = '급행 1001번';
+      else if (isHadan) recommendedBus = '급행 1000번';
+      else if (isDongnaePnu) recommendedBus = '시내 80번';
+      else if (originName.includes('수영') || originName.includes('광안') || destName.includes('수영') || destName.includes('광안')) recommendedBus = '시내 83번';
+      else recommendedBus = '시내 24번';
     }
 
     if (mode === 'BUS') {
       if (el.btnSelectBusMode) el.btnSelectBusMode.classList.add('active');
       if (el.btnSelectSubwayMode) el.btnSelectSubwayMode.classList.remove('active');
-      if (el.miniModeBadge) el.miniModeBadge.textContent = `🚌 ${recommendedBus} 직통`;
-      if (el.miniSummaryText) el.miniSummaryText.textContent = `${originName} ➔ ${destName} 직통 (${busTime}분 소요)`;
+      if (el.miniModeBadge) el.miniModeBadge.textContent = `🚌 ${recommendedBus} 도로 노선`;
+      if (el.miniSummaryText) el.miniSummaryText.textContent = `${originName} ➔ ${destName} 버스 (${busTime}분 소요)`;
+      showToast(`🚌 버스 노선 경로(${recommendedBus})가 지도에 표시됩니다.`);
     } else {
       if (el.btnSelectSubwayMode) el.btnSelectSubwayMode.classList.add('active');
       if (el.btnSelectBusMode) el.btnSelectBusMode.classList.remove('active');
-      if (el.miniModeBadge) el.miniModeBadge.textContent = '🚇 부산 2호선';
-      if (el.miniSummaryText) el.miniSummaryText.textContent = `${originName} ➔ ${destName} 정시도착 (${subwayTime}분 소요)`;
+      const subLabel = subData.isTransfer
+        ? `🚇 ${subData.lineFromName}➔${subData.lineToName} 환승`
+        : `🚇 부산 ${subData.lineFromName}`;
+      if (el.miniModeBadge) el.miniModeBadge.textContent = subLabel;
+      if (el.miniSummaryText) el.miniSummaryText.textContent = `${originName} ➔ ${destName} 지하철 (${subwayTime}분 소요)`;
+      showToast(`${subLabel} 선로 경로가 지도에 표시됩니다.`);
     }
     renderCurrentTab();
     drawMap();
@@ -2522,45 +2536,37 @@ document.addEventListener('DOMContentLoaded', () => {
     const isSubway = state.transitMode === 'SUBWAY';
     const showAllStops = state.showIntermediateStops;
 
-    // Transit Lines Styling (메인 경로는 굵은 실선, 보조 경로는 점선으로 끊김 없이 상시 연결)
+    // Transit Lines Styling: 버스 이용 시 버스 노선 경로대로만 표시, 지하철 이용 시 지하철 노선 경로대로만 표시
     if (busPolyline && subwayPolyline) {
-      const subData = buildDynamicSubwayPath(state.originStation, state.destStation);
-      let subColor = '#10B981'; // 2호선 초록 기본
-      if (!subData.isTransfer) {
-        if (subData.lineFrom === '1') subColor = '#F97316'; // 1호선 주황
-        else if (subData.lineFrom === '3') subColor = '#D97706'; // 3호선 호박
-        else if (subData.lineFrom === 'DONGHAE') subColor = '#0284C7'; // 동해선 블루
-      } else {
-        subColor = '#6366F1'; // 환승 구간 인디고
-      }
-
       if (isSubway) {
-        // 지하철 메인 강조
+        // [지하철 모드]: 버스 도로선은 완전 숨김, 지하철 선로만 노선 고유색으로 표시
+        busPolyline.setStyle({ opacity: 0, weight: 0 });
+
+        const subData = buildDynamicSubwayPath(state.originStation, state.destStation);
+        let subColor = '#10B981'; // 2호선 초록
+        if (!subData.isTransfer) {
+          if (subData.lineFrom === '1') subColor = '#F97316'; // 1호선 주황
+          else if (subData.lineFrom === '3') subColor = '#D97706'; // 3호선 호박
+          else if (subData.lineFrom === 'DONGHAE') subColor = '#0284C7'; // 동해선 블루
+        } else {
+          subColor = '#6366F1'; // 환승 구간 인디고
+        }
+
         subwayPolyline.setStyle({
           color: subColor,
           opacity: 0.95,
           weight: 6,
           dashArray: null
         });
-        busPolyline.setStyle({
-          color: '#3B82F6',
-          opacity: 0.35,
-          weight: 3.5,
-          dashArray: '6, 6'
-        });
       } else {
-        // 버스 메인 강조
+        // [버스 모드]: 지하철 선로는 완전 숨김, 버스 노선 도로 궤적만 선명하게 표시
+        subwayPolyline.setStyle({ opacity: 0, weight: 0 });
+
         busPolyline.setStyle({
           color: '#2563EB',
           opacity: 0.95,
           weight: 6,
           dashArray: null
-        });
-        subwayPolyline.setStyle({
-          color: subColor,
-          opacity: 0.35,
-          weight: 3.5,
-          dashArray: '6, 6'
         });
       }
     }
