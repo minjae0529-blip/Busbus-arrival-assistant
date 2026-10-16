@@ -133,9 +133,14 @@ document.addEventListener('DOMContentLoaded', () => {
     btnNPlaceNav: document.getElementById('btnNPlaceNav'),
     btnNPlaceAddCourse: document.getElementById('btnNPlaceAddCourse'),
     btnNPlaceFav: document.getElementById('btnNPlaceFav'),
+    nplaceModalHeroImg: document.getElementById('nplaceModalHeroImg'),
+    nplaceHeroPhotoCount: document.getElementById('nplaceHeroPhotoCount'),
     nplaceSignatureBox: document.getElementById('nplaceSignatureBox'),
     nplaceSignatureName: document.getElementById('nplaceSignatureName'),
+    nplaceSignaturePrice: document.getElementById('nplaceSignaturePrice'),
+    nplaceSignatureImg: document.getElementById('nplaceSignatureImg'),
     nplaceMenuListContainer: document.getElementById('nplaceMenuListContainer'),
+    nplacePhotoGridContainer: document.getElementById('nplacePhotoGridContainer'),
     nplaceAddressText: document.getElementById('nplaceAddressText'),
     btnCopyAddress: document.getElementById('btnCopyAddress'),
     nplaceHoursText: document.getElementById('nplaceHoursText'),
@@ -1570,23 +1575,27 @@ document.addEventListener('DOMContentLoaded', () => {
           ` : '';
 
           return `
-            <div class="place-card-v2" data-name="${item.name}" style="cursor:pointer; padding:14px 16px; border:1px solid #E2E8F0; border-radius:14px; background:#FFFFFF; margin-bottom:10px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
-                <div style="display:flex; gap:10px; align-items:center;">
-                  <div class="nplace-brand-logo-plate" style="width:42px; height:42px; font-size:14px; border-radius:10px; flex-shrink:0;">${shortBrand}</div>
-                  <div>
-                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                      <h3 style="font-size:16px; font-weight:800; color:#0F172A; margin:0;">${idx + 1}. ${item.name}</h3>
-                      <span class="nplace-auth-pill" style="font-size:9.5px; padding:1px 5px;">N PLACE</span>
-                    </div>
-                    <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
-                      <span style="font-size:11.5px; color:#64748B; font-weight:600;">${item.category}</span>
-                      <span style="font-size:11px; color:#CBD5E1;">·</span>
-                      <span style="font-size:11.5px; color:#2563EB; font-weight:700;">📍 ${distText} (도보 ${walkMins}분)</span>
-                    </div>
+            <div class="place-card-v2" data-name="${item.name}" style="cursor:pointer; padding:14px 16px; border:1px solid #E2E8F0; border-radius:14px; background:#FFFFFF; margin-bottom:12px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+              <div class="place-card-header-flex">
+                <div class="place-card-main-info">
+                  <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                    <div class="nplace-brand-logo-plate" style="width:32px; height:32px; font-size:12px; border-radius:8px; flex-shrink:0;">${shortBrand}</div>
+                    <h3 style="font-size:15.5px; font-weight:800; color:#0F172A; margin:0;">${idx + 1}. ${item.name}</h3>
+                    <span class="nplace-auth-pill" style="font-size:9.5px; padding:1px 5px;">N PLACE</span>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:6px; margin-top:4px;">
+                    <span style="font-size:11.5px; color:#64748B; font-weight:600;">${item.category}</span>
+                    <span style="font-size:11px; color:#CBD5E1;">·</span>
+                    <span style="font-size:11.5px; color:#2563EB; font-weight:700;">📍 ${distText} (도보 ${walkMins}분)</span>
+                  </div>
+                  <div style="margin-top:5px;">
+                    <span class="place-badge-tag" style="white-space:nowrap; font-size:10px;">${item.badge}</span>
                   </div>
                 </div>
-                <span class="place-badge-tag" style="white-space:nowrap; font-size:10px;">${item.badge}</span>
+                <div class="place-card-thumb-wrap">
+                  <img src="${item.imageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=200'}" alt="${item.name}" class="place-card-thumb-img" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=200'" />
+                  <span class="place-card-thumb-badge">★ ${item.googleRating}</span>
+                </div>
               </div>
 
               ${item.signatureMenu ? `
@@ -1672,6 +1681,145 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ========================================================
+  // NAVER PLACE PHOTO & MENU THUMBNAIL ENGINE
+  // ========================================================
+  const FOOD_PHOTO_LIBRARY = {
+    // 면 요리 / 라멘 / 소바
+    ramen: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=400&auto=format&fit=crop&q=80',
+    mazesoba: 'https://images.unsplash.com/photo-1591814468924-caf88d1232e1?w=400&auto=format&fit=crop&q=80',
+    gyoza: 'https://images.unsplash.com/photo-1496116218417-1a781b1c416c?w=400&auto=format&fit=crop&q=80',
+    noodle: 'https://images.unsplash.com/photo-1618841557871-b4664fbf0cb3?w=400&auto=format&fit=crop&q=80',
+    milmyeon: 'https://images.unsplash.com/photo-1552611052-33e04de081de?w=400&auto=format&fit=crop&q=80',
+
+    // 피자 / 파스타 / 양식
+    pizza: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&auto=format&fit=crop&q=80',
+    pasta: 'https://images.unsplash.com/photo-1621996346565-e3d5d6281729?w=400&auto=format&fit=crop&q=80',
+    steak: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400&auto=format&fit=crop&q=80',
+    salad: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=400&auto=format&fit=crop&q=80',
+
+    // 고기구이 / 바베큐 / 갈비
+    bbq: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400&auto=format&fit=crop&q=80',
+    porkbelly: 'https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?w=400&auto=format&fit=crop&q=80',
+    beef: 'https://images.unsplash.com/photo-1558030006-450675393462?w=400&auto=format&fit=crop&q=80',
+    stew: 'https://images.unsplash.com/photo-1547928576-a4a33237cbc3?w=400&auto=format&fit=crop&q=80',
+
+    // 돈카츠 / 카레 / 일식튀김
+    tonkatsu: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=400&auto=format&fit=crop&q=80',
+    curry: 'https://images.unsplash.com/photo-1625398407796-82650a8c135f?w=400&auto=format&fit=crop&q=80',
+    tempura: 'https://images.unsplash.com/photo-1611143669185-af224c5e3252?w=400&auto=format&fit=crop&q=80',
+
+    // 스시 / 초밥 / 회
+    sushi: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=400&auto=format&fit=crop&q=80',
+    sashimi: 'https://images.unsplash.com/photo-1617196034796-73dfa7b1fd56?w=400&auto=format&fit=crop&q=80',
+    salmon: 'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=400&auto=format&fit=crop&q=80',
+
+    // 국밥 / 한식 / 찌개
+    gukbap: 'https://images.unsplash.com/photo-1547928576-a4a33237cbc3?w=400&auto=format&fit=crop&q=80',
+    rice: 'https://images.unsplash.com/photo-1536304993881-ff6e9eefa2a6?w=400&auto=format&fit=crop&q=80',
+
+    // 카페 / 베이커리 / 디저트
+    coffee: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&auto=format&fit=crop&q=80',
+    latte: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400&auto=format&fit=crop&q=80',
+    cake: 'https://images.unsplash.com/photo-1587314168485-3236d6710814?w=400&auto=format&fit=crop&q=80',
+    croissant: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&auto=format&fit=crop&q=80',
+    tea: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400&auto=format&fit=crop&q=80',
+    ade: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=400&auto=format&fit=crop&q=80',
+
+    // 버거 / 치킨 / 펍
+    burger: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&auto=format&fit=crop&q=80',
+    chicken: 'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=400&auto=format&fit=crop&q=80',
+    beer: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=400&auto=format&fit=crop&q=80',
+    fries: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=400&auto=format&fit=crop&q=80'
+  };
+
+  function getMenuPhotoUrl(menuName, place) {
+    if (!menuName) return (place && place.imageUrl) || FOOD_PHOTO_LIBRARY.ramen;
+    const n = menuName.toLowerCase();
+
+    // 1. 피자류
+    if (n.includes('피자') || n.includes('크러스트')) return FOOD_PHOTO_LIBRARY.pizza;
+    if (n.includes('스파게티') || n.includes('파스타')) return FOOD_PHOTO_LIBRARY.pasta;
+
+    // 2. 라멘 / 소바 / 면류
+    if (n.includes('마제') || n.includes('아부라')) return FOOD_PHOTO_LIBRARY.mazesoba;
+    if (n.includes('라멘') || n.includes('이에케') || n.includes('돈코츠')) return FOOD_PHOTO_LIBRARY.ramen;
+    if (n.includes('만두') || n.includes('교자')) return FOOD_PHOTO_LIBRARY.gyoza;
+    if (n.includes('밀면') || n.includes('냉면')) return FOOD_PHOTO_LIBRARY.milmyeon;
+    if (n.includes('우동') || n.includes('소바') || n.includes('국수')) return FOOD_PHOTO_LIBRARY.noodle;
+
+    // 3. 고기 / 삼겹 / 소고기
+    if (n.includes('삼겹') || n.includes('목살') || n.includes('소금구이') || n.includes('항정')) return FOOD_PHOTO_LIBRARY.porkbelly;
+    if (n.includes('한우') || n.includes('갈비') || n.includes('스테이크') || n.includes('등심')) return FOOD_PHOTO_LIBRARY.beef;
+    if (n.includes('찌개') || n.includes('탕') || n.includes('전골')) return FOOD_PHOTO_LIBRARY.stew;
+
+    // 4. 돈카츠 / 카레 / 텐동
+    if (n.includes('카츠') || n.includes('돈까스') || n.includes('로스') || n.includes('히레')) return FOOD_PHOTO_LIBRARY.tonkatsu;
+    if (n.includes('카레')) return FOOD_PHOTO_LIBRARY.curry;
+    if (n.includes('텐동') || n.includes('튀김') || n.includes('에비')) return FOOD_PHOTO_LIBRARY.tempura;
+
+    // 5. 스시 / 초밥 / 회
+    if (n.includes('스시') || n.includes('초밥') || n.includes('오마카세')) return FOOD_PHOTO_LIBRARY.sushi;
+    if (n.includes('사시미') || n.includes('회') || n.includes('숙성회')) return FOOD_PHOTO_LIBRARY.sashimi;
+    if (n.includes('연어') || n.includes('사케동')) return FOOD_PHOTO_LIBRARY.salmon;
+
+    // 6. 국밥 / 한식 / 밥
+    if (n.includes('국밥') || n.includes('수육') || n.includes('순대')) return FOOD_PHOTO_LIBRARY.gukbap;
+    if (n.includes('볶음밥') || n.includes('덮밥') || n.includes('비빔밥')) return FOOD_PHOTO_LIBRARY.rice;
+
+    // 7. 카페 / 베이커리 / 음료
+    if (n.includes('커피') || n.includes('아메리카노') || n.includes('에스프레소') || n.includes('드립') || n.includes('콜드브루')) return FOOD_PHOTO_LIBRARY.coffee;
+    if (n.includes('라떼') || n.includes('카푸치노') || n.includes('플랫화이트')) return FOOD_PHOTO_LIBRARY.latte;
+    if (n.includes('케이크') || n.includes('타르트') || n.includes('티라미수') || n.includes('판나코타')) return FOOD_PHOTO_LIBRARY.cake;
+    if (n.includes('크루아상') || n.includes('베이글') || n.includes('소금빵') || n.includes('페이스트리') || n.includes('빵')) return FOOD_PHOTO_LIBRARY.croissant;
+    if (n.includes('에이드') || n.includes('주스') || n.includes('스무디') || n.includes('탄산')) return FOOD_PHOTO_LIBRARY.ade;
+    if (n.includes('티') || n.includes('차') || n.includes('밀크티')) return FOOD_PHOTO_LIBRARY.tea;
+
+    // 8. 펍 / 버거 / 패스트푸드
+    if (n.includes('버거')) return FOOD_PHOTO_LIBRARY.burger;
+    if (n.includes('치킨') || n.includes('가라아게') || n.includes('윙')) return FOOD_PHOTO_LIBRARY.chicken;
+    if (n.includes('맥주') || n.includes('하이볼') || n.includes('칵테일') || n.includes('와인')) return FOOD_PHOTO_LIBRARY.beer;
+    if (n.includes('감자') || n.includes('프라이')) return FOOD_PHOTO_LIBRARY.fries;
+
+    // 9. 매장 대표 이미지 또는 기본값
+    if (place && place.imageUrl) return place.imageUrl;
+    return FOOD_PHOTO_LIBRARY.ramen;
+  }
+
+  function getPlacePhotoGallery(place) {
+    const photos = [];
+    const mainImg = place.imageUrl || FOOD_PHOTO_LIBRARY.ramen;
+    photos.push({ url: mainImg, label: '대표 시그니처 컷' });
+
+    // 각 메뉴별 사진 추가
+    if (place.menuList && place.menuList.length > 0) {
+      place.menuList.forEach(m => {
+        const match = m.match(/^(.*?)\s*\((.*?)\)$/);
+        const mName = match ? match[1].trim() : m;
+        const photoUrl = getMenuPhotoUrl(mName, place);
+        if (!photos.some(p => p.url === photoUrl)) {
+          photos.push({ url: photoUrl, label: mName });
+        }
+      });
+    }
+
+    // 추가 분위기/매장 인테리어 사진 보충 (최소 6~9장 구성)
+    const backupPhotos = [
+      { url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500&auto=format&fit=crop&q=80', label: '매장 실내 분위기' },
+      { url: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500&auto=format&fit=crop&q=80', label: '테이블 & 좌석 뷰' },
+      { url: 'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?w=500&auto=format&fit=crop&q=80', label: '주방 & 오픈 조리' },
+      { url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=500&auto=format&fit=crop&q=80', label: '정갈한 한 상 차림' }
+    ];
+
+    backupPhotos.forEach(bp => {
+      if (photos.length < 9 && !photos.some(p => p.url === bp.url)) {
+        photos.push(bp);
+      }
+    });
+
+    return photos;
+  }
+
+  // ========================================================
   // NAVER PLACE DETAIL MODAL CONTROLLER
   // ========================================================
   let activeDetailPlace = null;
@@ -1679,6 +1827,12 @@ document.addEventListener('DOMContentLoaded', () => {
   function openNaverPlaceDetailModal(place) {
     if (!place || !el.naverPlaceDetailModal) return;
     activeDetailPlace = place;
+
+    // 0. 매장 대표 사진 히어로 배너 (와이드 포토 뷰)
+    const heroImg = place.imageUrl || FOOD_PHOTO_LIBRARY.ramen;
+    if (el.nplaceModalHeroImg) {
+      el.nplaceModalHeroImg.src = heroImg;
+    }
 
     // 1. 상표 로고 플레이트
     const shortBrand = (place.name || '').replace(/[\s\(\)\[\]점본점]/g, '').slice(0, 2) || '맛집';
@@ -1694,15 +1848,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (el.nplaceModalBadge) el.nplaceModalBadge.textContent = place.badge || 'N PLACE 공식등록';
     if (el.nplaceModalDesc) el.nplaceModalDesc.textContent = place.description || '네이버 플레이스 등록 매장';
 
-    // 2. 시그니처 메뉴
+    // 2. 시그니처 메뉴 및 사진
     if (place.signatureMenu) {
-      if (el.nplaceSignatureBox) el.nplaceSignatureBox.style.display = 'block';
+      if (el.nplaceSignatureBox) el.nplaceSignatureBox.style.display = 'flex';
       if (el.nplaceSignatureName) el.nplaceSignatureName.textContent = place.signatureMenu;
+      if (el.nplaceSignaturePrice) el.nplaceSignaturePrice.textContent = place.priceRange || '시그니처 대표 메뉴';
+      if (el.nplaceSignatureImg) {
+        el.nplaceSignatureImg.src = getMenuPhotoUrl(place.signatureMenu, place);
+      }
     } else {
       if (el.nplaceSignatureBox) el.nplaceSignatureBox.style.display = 'none';
     }
 
-    // 3. 메뉴 목록 렌더링
+    // 3. 메뉴 목록 렌더링 (각 메뉴별 실물 음식 사진 썸네일 탑재)
     const menus = place.menuList || [];
     if (el.nplaceMenuListContainer) {
       if (menus.length > 0) {
@@ -1711,6 +1869,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const mName = match ? match[1].trim() : m;
           const mPrice = match ? match[2].trim() : (place.priceRange || '10,000원~');
           const isSig = place.signatureMenu && place.signatureMenu.includes(mName);
+          const menuPhotoUrl = getMenuPhotoUrl(mName, place);
 
           return `
             <div class="nplace-menu-item-row">
@@ -1720,8 +1879,11 @@ document.addEventListener('DOMContentLoaded', () => {
                   ${isSig ? '<span class="nplace-menu-sig-badge">대표</span>' : ''}
                 </div>
                 <div class="nplace-menu-desc">${place.name} 인기 추천 메뉴</div>
+                <div class="nplace-menu-price">${mPrice}</div>
               </div>
-              <div class="nplace-menu-price">${mPrice}</div>
+              <div class="nplace-menu-thumb-wrap">
+                <img src="${menuPhotoUrl}" alt="${mName}" class="nplace-menu-thumb-img" onerror="this.onerror=null;this.src='${heroImg}'" />
+              </div>
             </div>
           `;
         }).join('');
@@ -1735,14 +1897,28 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // 4. 정보 탭
+    // 4. 사진 탭 갤러리 렌더링
+    const galleryPhotos = getPlacePhotoGallery(place);
+    if (el.nplaceHeroPhotoCount) {
+      el.nplaceHeroPhotoCount.textContent = `사진 ${galleryPhotos.length}장+`;
+    }
+    if (el.nplacePhotoGridContainer) {
+      el.nplacePhotoGridContainer.innerHTML = galleryPhotos.map((p, idx) => `
+        <div class="nplace-photo-card" data-idx="${idx}" title="${p.label}">
+          <img src="${p.url}" alt="${p.label}" loading="lazy" onerror="this.onerror=null;this.src='${heroImg}'" />
+          <div class="nplace-photo-card-label">${p.label}</div>
+        </div>
+      `).join('');
+    }
+
+    // 5. 정보 탭
     if (el.nplaceAddressText) el.nplaceAddressText.textContent = place.address || '부산시내';
     if (el.nplaceHoursText) el.nplaceHoursText.textContent = place.businessHours || '11:00 ~ 21:30';
     if (el.nplacePhoneText) el.nplacePhoneText.textContent = place.phone || '051-808-1662 (매장 문의)';
     if (el.nplacePriceRangeText) el.nplacePriceRangeText.textContent = place.priceRange || '1~2만원대 (1인 기준)';
     if (el.nplaceWalkText) el.nplaceWalkText.textContent = `목적지 역 기준 ${place.walkMinutes || '도보 3분'}`;
 
-    // 5. 분위기 태그
+    // 6. 분위기 태그
     if (el.nplaceMoodContainer) {
       const tags = (place.moodTags || '#맛집 #추천').split(' ').filter(Boolean);
       el.nplaceMoodContainer.innerHTML = tags.map(t => `<span class="nplace-mood-pill">${t}</span>`).join('');
@@ -1775,9 +1951,11 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
     const tabMenu = document.getElementById('nplaceTabMenu');
+    const tabPhoto = document.getElementById('nplaceTabPhoto');
     const tabInfo = document.getElementById('nplaceTabInfo');
     const tabMood = document.getElementById('nplaceTabMood');
     if (tabMenu) tabMenu.style.display = (tabName === 'menu') ? 'block' : 'none';
+    if (tabPhoto) tabPhoto.style.display = (tabName === 'photo') ? 'block' : 'none';
     if (tabInfo) tabInfo.style.display = (tabName === 'info') ? 'block' : 'none';
     if (tabMood) tabMood.style.display = (tabName === 'mood') ? 'block' : 'none';
   }

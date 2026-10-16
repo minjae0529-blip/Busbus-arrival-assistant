@@ -2760,5 +2760,203 @@ body, html {
   border-radius: 20px;
 }
 
+/* ========================================================================= */
+/* NAVER PLACE PHOTO & MENU THUMBNAILS (네이버 플레이스 음식 사진 및 갤러리) */
+/* ========================================================================= */
+
+/* 1. 모달 상단 히어로 포토 배너 */
+.nplace-hero-gallery {
+  position: relative;
+  width: 100%;
+  height: 180px;
+  overflow: hidden;
+  background: #0F172A;
+}
+
+.nplace-hero-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.nplace-hero-gallery:hover .nplace-hero-img {
+  transform: scale(1.03);
+}
+
+.nplace-hero-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.05) 50%, rgba(0,0,0,0.6) 100%);
+  pointer-events: none;
+}
+
+.nplace-hero-photo-badge {
+  position: absolute;
+  bottom: 12px;
+  right: 14px;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+/* 2. 시그니처 메뉴 박스 내 음식 사진 */
+.nplace-signature-box {
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.nplace-sig-content {
+  flex: 1;
+}
+
+.nplace-sig-thumb-wrap {
+  width: 68px;
+  height: 68px;
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.nplace-sig-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 3. 메뉴판 개별 아이템 메뉴 사진 (네이버 지도 모바일 메뉴판 규격) */
+.nplace-menu-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #F1F5F9;
+  gap: 14px;
+}
+
+.nplace-menu-thumb-wrap {
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid #E2E8F0;
+  background: #F8FAFC;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+
+.nplace-menu-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.25s ease;
+}
+
+.nplace-menu-thumb-wrap:hover .nplace-menu-thumb-img {
+  transform: scale(1.08);
+}
+
+/* 4. 사진 탭 갤러리 그리드 */
+.nplace-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.nplace-photo-card {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #E2E8F0;
+  background: #0F172A;
+  cursor: pointer;
+}
+
+.nplace-photo-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.nplace-photo-card:hover img {
+  transform: scale(1.06);
+}
+
+.nplace-photo-card-label {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.75) 100%);
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 14px 6px 4px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 5. 실시간 약속 카드(place-card-v2) 썸네일 사진 */
+.place-card-header-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.place-card-main-info {
+  flex: 1;
+}
+
+.place-card-thumb-wrap {
+  width: 76px;
+  height: 76px;
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid #E2E8F0;
+  background: #F1F5F9;
+  position: relative;
+}
+
+.place-card-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.place-card-thumb-badge {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  background: rgba(0,0,0,0.65);
+  color: #FFFFFF;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
 
 
