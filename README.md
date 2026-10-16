@@ -12,7 +12,7 @@
 **부산 전역 실시간 버스·도시철도 내비게이션 & 약속 케어(Meetup Care) 모빌리티 플랫폼**  
 *비용과 쿼터 제약 없는 OSRM 실제 도로 라우팅 엔진, 공공데이터 BIMS 실시간 도착 정보, 최적 중간역 알고리즘 결합*
 
-[핵심 기능](#-핵심-기능-key-features) • [시스템 아키텍처](#-시스템-아키텍처--데이터-흐름) • [기술적 챌린지 및 해결](#-기술적-챌린지-및-문제-해결-engineering-highlights) • [API 명세](#-restful-api-명세) • [시작하기](#-시작하기-getting-started)
+[핵심 기능](#-핵심-기능-key-features) • [시스템 아키텍처](#-시스템-아키텍처--데이터-흐름) • [하네스 & 루프 엔지니어링](#-하네스--루프-엔지니어링-harness--loop-engineering) • [기술적 챌린지 및 해결](#-기술적-챌린지-및-문제-해결-engineering-highlights) • [API 명세](#-restful-api-명세) • [시작하기](#-시작하기-getting-started)
 
 </div>
 
@@ -64,6 +64,27 @@ flowchart TD
     Client -->|Driving Path Query| OSRM
     BimsSvc -->|HTTP Polling (20s)| BIMS
     Server -->|POI Discovery Query| OSM
+```
+
+---
+
+## 🔬 하네스 & 루프 엔지니어링 (Harness & Loop Engineering)
+
+본 프로젝트는 고가용성 서버리스 환경으로의 성공적인 전환 및 무정지 자율 운영을 위해 **하네스(Harness) 기반 검증 체계**와 **루프 엔지니어링(Loop Engineering)** 방법론을 채택하여 설계되었습니다.
+
+### 📑 핵심 엔지니어링 규격 문서
+- **[HARNESS.md](file:///Users/kangminjae/Documents/gov/java/bus-arrival-assistant/HARNESS.md)**: 계약(L1), 함수(L2), 결함 주입(L3), 성능(L4) 4계층 하네스 아키텍처 명세서.
+- **[LOOP_ENGINEERING.md](file:///Users/kangminjae/Documents/gov/java/bus-arrival-assistant/LOOP_ENGINEERING.md)**: OODA(관측-정렬-결정-실행-평가) 자율 피드백 사이클 및 품질 게이트(Quality Gate) 정의.
+- **[SERVERLESS_ARCH.md](file:///Users/kangminjae/Documents/gov/java/bus-arrival-assistant/SERVERLESS_ARCH.md)**: Spring Boot 모놀리스 ➔ 4대 마이크로 서버리스 함수(Zero Scale, Edge Cache) 전환 아키텍처.
+- **[EVALUATION_LOOP.md](file:///Users/kangminjae/Documents/gov/java/bus-arrival-assistant/EVALUATION_LOOP.md)**: 5대 골든 벤치마크 시나리오 및 복원력 평가 공식과 CI/CD 실행 규격.
+
+```mermaid
+flowchart LR
+    A["Harness (L1~L4)"] --> B["Evaluation Loop<br/>(Golden Scenarios)"]
+    B --> C["Quality Gates<br/>(Zero Error / SLA)"]
+    C -->|Pass| D["Edge Serverless Deploy"]
+    C -->|Fail| E["Autonomous Self-Correction<br/>(Loop Engineering)"]
+    E --> A
 ```
 
 ---
