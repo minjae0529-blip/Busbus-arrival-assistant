@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     busDriveDurationSecs: null,   // OSRM 실측 주행 시간 (seconds)
     activeTab: 'destination', // 'destination' | 'all-arrivals' | 'appointments' | 'recommendations' | 'favorites'
     transitMode: 'BUS', // 'BUS' | 'SUBWAY'
+    selectedSubwayRouteIndex: 0, // 선택된 지하철 경로 인덱스 (0: 직통/최단, 1: 환승대안 1, 2: 환승대안 2)
     showIntermediateStops: false, // 사용자가 노선을 누를 때만 경유 정류소 표시!
     selectedPlaceForNav: null, // 도보 길안내 선택된 장소
     selectedPlaceFilter: 'ALL', // 'ALL' | 'FRIEND' | 'SOLO' | 'PLAY' | 'CAFE' | 'FOOD'
@@ -593,6 +594,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     state.originStation = originSt;
     state.destStation = destSt;
+    state.selectedSubwayRouteIndex = 0;
     state.currentLat = originSt.lat;
     state.currentLng = originSt.lng;
 
@@ -1185,41 +1187,149 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 1. SUBWAY VIEW
+  // 1. SUBWAY VIEW (직통 및 다양한 환승 대안 제시)
   function renderSubwayRouteDetails() {
     const originName = state.originStation ? state.originStation.name : '대연역';
     const destName = state.destStation ? state.destStation.name : '서면역';
-    const subData = buildDynamicSubwayPath(state.originStation, state.destStation);
-    const subStations = subData.stations;
-    const subwayTime = Math.max(3, Math.round(subStations.length * 2.2));
+    const allRoutes = buildAllSubwayRoutes(state.originStation, state.destStation);
+    const selectedIdx = Math.min(state.selectedSubwayRouteIndex || 0, allRoutes.length - 1);
+    const currentRoute = allRoutes[selectedIdx] || allRoutes[0];
+
+    const subStations = currentRoute.stations;
+    const subwayTime = currentRoute.timeMins;
     const stopsCount = Math.max(0, subStations.length - 1);
 
     if (el.fastestCard) {
       el.fastestCard.style.display = 'block';
-      el.fastestBusTitle.textContent = `★ [지하철 2호선] ${originName} ➔ ${destName} ${subwayTime}분 정시도착!`;
-      el.fastestBusDesc.textContent = `${stopsCount}개 역 경유 (${subStations.map(s => s.name).join(' ➔ ')}) · 배차 5분`;
+      const routeTypeLabel = currentRoute.isTransfer ? `[환승 ${currentRoute.transfers}회]` : `[직통]`;
+      el.fastestBusTitle.textContent = `★ ${routeTypeLabel} ${originName} ➔ ${destName} ${subwayTime}분 정시도착!`;
+      el.fastestBusDesc.textContent = `${currentRoute.title} · ${stopsCount}개 역 경유 · 배차 4~6분`;
     }
 
+    // A. 상단 다중 경로 선택 탭/알약 카드 생성
+    const routeTabsHtml = `
+      <div class="subway-routes-selector">
+        <div style="font-size:11.5px; font-weight:800; color:#334155; display:flex; justify-content:space-between; align-items:center;">
+          <span>🚇 이동 방법 선택 (직통 & 다양한 환승 대안)</span>
+          <span style="font-size:10.5px; color:#6366F1; font-weight:700;">총 ${allRoutes.length}개 경로 탐색됨</span>
+        </div>
+        <div class="subway-routes-nav-row">
+          ${allRoutes.map((r, idx) => {
+            const isActive = (idx === selectedIdx);
+            const badgeClass = r.badgeType || (r.isTransfer ? 'transfer' : 'direct');
+            return `
+              <div class="subway-route-tab-card ${isActive ? 'active' : ''} ${r.isTransfer ? 'is-transfer' : ''}" data-route-idx="${idx}">
+                <div class="subway-route-badge-row">
+                  <span class="subway-route-badge ${badgeClass}">${r.badgeText}</span>
+                  <span style="font-size:11.5px; font-weight:900; color:${isActive ? '#10B981' : '#64748B'};">약 ${r.timeMins}분</span>
+                </div>
+                <div class="subway-route-title">${r.title}</div>
+                <div class="subway-route-summary-text">
+                  <span>${r.isTransfer ? `환승 ${r.transfers}회` : '환승 없음'}</span>
+                  <span>·</span>
+                  <span>${r.stations.length}개 역</span>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+
+    // B. 환승 상세 타임라인 스텝바 렌더링
+    let timelineHtml = '';
+    if (currentRoute.sections && currentRoute.sections.length > 0) {
+      timelineHtml = `
+        <div class="subway-transfer-timeline">
+          <div style="font-size:11.5px; font-weight:800; color:#1E293B; margin-bottom:10px;">
+            🚦 구간별 상세 탑승 & 환승 안내
+          </div>
+          ${currentRoute.sections.map((sec, sIdx) => {
+            if (sec.type === 'SUBWAY') {
+              let lineBg = '#10B981'; // 2호선
+              if (sec.line === '1') lineBg = '#F97316';
+              else if (sec.line === '3') lineBg = '#D97706';
+              else if (sec.line === 'DONGHAE') lineBg = '#0284C7';
+
+              return `
+                <div class="subway-step-row">
+                  <div class="subway-step-line-col">
+                    <div class="subway-step-node" style="box-shadow: 0 0 0 1.5px ${lineBg}; background:${lineBg};"></div>
+                    <div class="subway-step-track" style="background:${lineBg};"></div>
+                  </div>
+                  <div class="subway-step-content">
+                    <div class="subway-step-head">
+                      <span class="subway-line-pill" style="background:${lineBg};">${sec.lineName}</span>
+                      <span class="subway-step-station-name">${sec.from} 승차</span>
+                      <span style="font-size:11px; color:#2563EB; font-weight:700;">약 ${sec.timeMins}분</span>
+                    </div>
+                    <div class="subway-step-desc">
+                      ${sec.to} 방면 이동 (${sec.stations.length - 1}개 역 경유)
+                    </div>
+                  </div>
+                </div>
+              `;
+            } else if (sec.type === 'TRANSFER') {
+              return `
+                <div class="subway-transfer-box">
+                  <span style="font-size:13px;">🔄</span>
+                  <div>
+                    <strong>${sec.stationName} 환승 (도보 약 ${sec.walkMins}분)</strong><br>
+                    <span style="font-size:10.5px; color:#78350F;">${sec.fromLine} ➔ ${sec.toLine} 환승통로 이용 · 계단/에스컬레이터 (빠른 환승 3-2번 칸)</span>
+                  </div>
+                </div>
+              `;
+            }
+            return '';
+          }).join('')}
+          <div class="subway-step-row" style="padding-bottom:0;">
+            <div class="subway-step-line-col">
+              <div class="subway-step-node" style="box-shadow: 0 0 0 1.5px #EF4444; background:#EF4444;"></div>
+            </div>
+            <div class="subway-step-content">
+              <div class="subway-step-head">
+                <span class="subway-step-station-name" style="color:#DC2626;">🏁 ${destName} 하차 (목적지 도착)</span>
+              </div>
+              <div class="subway-step-desc">출구 연결 통로를 통해 도보 이동</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // C. 경유역 칩 목록
     const stopsChipsHtml = subStations.map((st, idx) => {
       let cls = 'stop-chip';
       let tag = '';
+      const isTransfer = currentRoute.transferStation && (st.id === currentRoute.transferStation.id || st.name === currentRoute.transferStation.name);
       if (idx === 0) { cls += ' current'; tag = '(승차)'; }
       else if (idx === subStations.length - 1) { cls += ' is-dest'; tag = '(하차)'; }
+      else if (isTransfer) { cls += ' is-transfer'; tag = '(환승)'; }
       const arrow = (idx < subStations.length - 1) ? '<span class="stop-arrow">→</span>' : '';
       return `<span class="${cls}">${st.name}${tag}</span>${arrow}`;
     }).join('');
 
+    // D. 메인 카드 렌더링
+    let mainBadgeColor = '#10B981';
+    let mainLineTitle = `부산 ${currentRoute.lineFromName}`;
+    if (currentRoute.isTransfer) {
+      mainBadgeColor = '#6366F1';
+      mainLineTitle = `${currentRoute.lineFromName} ➔ ${currentRoute.lineToName} 환승`;
+    }
+
     el.busListContainer.innerHTML = `
-      <div class="bus-card">
+      ${routeTabsHtml}
+
+      <div class="bus-card" style="border-top: 3px solid ${mainBadgeColor};">
         <div class="card-top-row">
           <div class="bus-badge-container">
-            <span class="bus-number-chip" style="background:#10B981;">부산 2호선</span>
+            <span class="bus-number-chip" style="background:${mainBadgeColor};">${mainLineTitle}</span>
             <div class="bus-dir-info">
               <span class="bus-dir-text">${destName} 방면</span>
-              <span class="bus-stops-estimate">${destName}까지 ${stopsCount}개 역 경유 (약 ${subwayTime}분 소요)</span>
+              <span class="bus-stops-estimate">${currentRoute.title} (약 ${subwayTime}분 소요 · ${currentRoute.isTransfer ? `환승 ${currentRoute.transfers}회` : '직통'})</span>
             </div>
           </div>
-          <span style="font-size:12px; font-weight:800; color:#10B981;">정시 운행</span>
+          <span style="font-size:12px; font-weight:800; color:${mainBadgeColor};">${currentRoute.badgeText}</span>
         </div>
 
         <div class="arrival-row">
@@ -1233,14 +1343,27 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </div>
 
-        <div class="stops-preview-box">
-          <span class="stops-preview-title">경유 지하철역 (클릭 시 지도에서 확인):</span>
+        ${timelineHtml}
+
+        <div class="stops-preview-box" style="margin-top:12px;">
+          <span class="stops-preview-title">경유 정차역 전체 목록 (총 ${stopsCount + 1}개 역):</span>
           <div class="stops-chips-row">
             ${stopsChipsHtml}
           </div>
         </div>
       </div>
     `;
+
+    // E. 경로 선택 탭 클릭 이벤트 바인딩
+    const routeCards = el.busListContainer.querySelectorAll('.subway-route-tab-card');
+    routeCards.forEach(card => {
+      card.addEventListener('click', () => {
+        const rIdx = parseInt(card.dataset.routeIdx, 10);
+        state.selectedSubwayRouteIndex = rIdx;
+        renderSubwayRouteDetails();
+        drawMap();
+      });
+    });
   }
 
   // 2. BUS DESTINATION MATCHES
@@ -2923,21 +3046,46 @@ document.addEventListener('DOMContentLoaded', () => {
   /**
    * 부산 전역 지하철 환승 라우팅 엔진 (직통 및 1회 환승 자동 탐색)
    */
-  function buildDynamicSubwayPath(originSt, destSt) {
+  /**
+   * 부산 전역 지하철 다중 경로 탐색 엔진 (직통 및 다양한 환승 대안 제시)
+   */
+  function buildAllSubwayRoutes(originSt, destSt) {
     if (!originSt || !destSt) {
-      return {
+      return [{
+        routeId: 0,
+        title: '2호선 직통',
+        badgeType: 'direct',
+        badgeText: '추천 직통',
+        timeMins: 15,
+        transfers: 0,
         isTransfer: false,
+        transferStation: null,
+        lineFrom: '2',
+        lineTo: '2',
+        lineFromName: '2호선',
+        lineToName: '2호선',
         stations: SUBWAY_LINE_2.slice(5, 12),
         coords: SUBWAY_LINE_2.slice(5, 12).map(s => [s.lat, s.lng]),
-        timeMins: 15,
-        lineFromName: '2호선',
-        lineToName: '2호선'
-      };
+        sections: [
+          { type: 'SUBWAY', line: '2', lineName: '2호선', from: '대연역', to: '서면역', stations: SUBWAY_LINE_2.slice(5, 12), timeMins: 15 }
+        ]
+      }];
     }
 
     const oLines = (originSt.lines || ['2']).filter(l => l !== 'BUS');
     const dLines = (destSt.lines || ['2']).filter(l => l !== 'BUS');
     const commonLines = oLines.filter(l => dLines.includes(l));
+
+    const transferHubs = [
+      { id: 'ST-BS-SMN', lines: ['1', '2'], name: '서면역', walkMins: 3 },
+      { id: 'ST-BS-YS', lines: ['1', '3'], name: '연산역', walkMins: 2 },
+      { id: 'ST-BS-SY', lines: ['2', '3'], name: '수영역', walkMins: 3 },
+      { id: 'ST-BS-DC', lines: ['2', '3'], name: '덕천역', walkMins: 3 },
+      { id: 'ST-BS-CD', lines: ['1', 'DONGHAE'], name: '교대역', walkMins: 4 },
+      { id: 'ST-BS-BX', lines: ['2', 'DONGHAE'], name: '벡스코역', walkMins: 5 }
+    ];
+
+    const routes = [];
 
     // 1. 직통 가능한 경우 (동일 노선)
     if (commonLines.length > 0) {
@@ -2945,9 +3093,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const lineArr = getLineList(lineKey);
       const sliced = sliceLineStations(lineArr, originSt, destSt);
       const timeMins = Math.max(3, Math.round(sliced.length * 2.2));
-      return {
-        isTransfer: false,
+
+      routes.push({
+        routeId: 0,
+        title: `${getLineName(lineKey)} 직통`,
+        badgeType: 'direct',
+        badgeText: '추천 직통',
+        timeMins: timeMins,
         transfers: 0,
+        isTransfer: false,
         transferStation: null,
         lineFrom: lineKey,
         lineTo: lineKey,
@@ -2955,78 +3109,171 @@ document.addEventListener('DOMContentLoaded', () => {
         lineToName: getLineName(lineKey),
         stations: sliced,
         coords: sliced.map(s => [s.lat, s.lng]),
-        timeMins: timeMins
-      };
+        sections: [
+          {
+            type: 'SUBWAY',
+            line: lineKey,
+            lineName: getLineName(lineKey),
+            from: originSt.name,
+            to: destSt.name,
+            stations: sliced,
+            timeMins: timeMins
+          }
+        ]
+      });
+
+      // 직통 가능하더라도 사용자가 요구한 "환승해서 가는 대안" 제공!
+      const altHubs = transferHubs.filter(h => h.id !== originSt.id && h.id !== destSt.id);
+      altHubs.forEach(hub => {
+        const hubSt = ALL_STATIONS_MASTER.find(s => s.id === hub.id);
+        if (!hubSt) return;
+
+        for (const ol of oLines) {
+          if (!hub.lines.includes(ol)) continue;
+          for (const hl of hub.lines) {
+            if (hl === ol) continue;
+            const leg1 = sliceLineStations(getLineList(ol), originSt, hubSt);
+            const leg2 = sliceLineStations(getLineList(ol), hubSt, destSt);
+            if (leg1.length > 1 && leg2.length > 1) {
+              const merged = [...leg1, ...leg2.slice(1)];
+              const tMins = Math.round(merged.length * 2.2 + hub.walkMins + 4);
+
+              if (!routes.some(r => r.transferStation && r.transferStation.id === hub.id)) {
+                routes.push({
+                  routeId: routes.length,
+                  title: `${hub.name} 환승 대안`,
+                  badgeType: 'transfer',
+                  badgeText: `${hub.name} 환승`,
+                  timeMins: tMins,
+                  transfers: 1,
+                  isTransfer: true,
+                  transferStation: hubSt,
+                  lineFrom: ol,
+                  lineTo: hl,
+                  lineFromName: getLineName(ol),
+                  lineToName: getLineName(hl),
+                  stations: merged,
+                  coords: merged.map(s => [s.lat, s.lng]),
+                  sections: [
+                    { type: 'SUBWAY', line: ol, lineName: getLineName(ol), from: originSt.name, to: hub.name, stations: leg1, timeMins: Math.round(leg1.length * 2.2) },
+                    { type: 'TRANSFER', stationName: hub.name, walkMins: hub.walkMins, fromLine: getLineName(ol), toLine: getLineName(hl) },
+                    { type: 'SUBWAY', line: ol, lineName: getLineName(ol), from: hub.name, to: destSt.name, stations: leg2, timeMins: Math.round(leg2.length * 2.2) }
+                  ]
+                });
+              }
+            }
+          }
+        }
+      });
     }
 
-    // 2. 환승 1회 경로 탐색 (핵심 환승 허브 매칭)
-    const transferHubs = [
-      { id: 'ST-BS-SMN', lines: ['1', '2'], name: '서면역' },
-      { id: 'ST-BS-YS', lines: ['1', '3'], name: '연산역' },
-      { id: 'ST-BS-CD', lines: ['1', 'DONGHAE'], name: '교대역' },
-      { id: 'ST-BS-BX', lines: ['2', 'DONGHAE'], name: '벡스코역' },
-      { id: 'ST-BS-SY', lines: ['2', '3'], name: '수영역' },
-      { id: 'ST-BS-DC', lines: ['2', '3'], name: '덕천역' }
-    ];
+    // 2. 환승 경로 탐색 (모든 가능한 1회 환승 허브 탐색)
+    transferHubs.forEach(hub => {
+      const hubSt = ALL_STATIONS_MASTER.find(s => s.id === hub.id);
+      if (!hubSt) return;
 
-    let chosenHubInfo = null;
-    let chosenLine1 = oLines[0] || '2';
-    let chosenLine2 = dLines[0] || '1';
+      for (const ol of oLines) {
+        if (!hub.lines.includes(ol)) continue;
+        for (const dl of dLines) {
+          if (!hub.lines.includes(dl)) continue;
+          if (ol === dl) continue; // 직통 제외
 
-    for (const ol of oLines) {
-      for (const dl of dLines) {
-        const found = transferHubs.find(h => h.lines.includes(ol) && h.lines.includes(dl));
-        if (found) {
-          chosenHubInfo = found;
-          chosenLine1 = ol;
-          chosenLine2 = dl;
-          break;
+          const leg1 = sliceLineStations(getLineList(ol), originSt, hubSt);
+          const leg2 = sliceLineStations(getLineList(dl), hubSt, destSt);
+
+          if (leg1.length >= 1 && leg2.length >= 1) {
+            leg1[leg1.length - 1] = { ...hubSt };
+            leg2[0] = { ...hubSt };
+            const merged = [...leg1, ...leg2.slice(1)];
+            merged[0] = { ...originSt };
+            merged[merged.length - 1] = { ...destSt };
+
+            const time1 = Math.round(leg1.length * 2.2);
+            const time2 = Math.round(leg2.length * 2.2);
+            const totalMins = Math.max(8, time1 + time2 + hub.walkMins);
+
+            const alreadyExists = routes.some(r => r.transferStation && r.transferStation.id === hub.id);
+            if (!alreadyExists) {
+              routes.push({
+                routeId: routes.length,
+                title: `${hub.name} 환승 (${getLineName(ol)} ➔ ${getLineName(dl)})`,
+                badgeType: routes.length === 0 ? 'direct' : 'transfer',
+                badgeText: routes.length === 0 ? '추천 환승' : `${hub.name} 환승`,
+                timeMins: totalMins,
+                transfers: 1,
+                isTransfer: true,
+                transferStation: hubSt,
+                lineFrom: ol,
+                lineTo: dl,
+                lineFromName: getLineName(ol),
+                lineToName: getLineName(dl),
+                stations: merged,
+                coords: merged.map(s => [s.lat, s.lng]),
+                sections: [
+                  { type: 'SUBWAY', line: ol, lineName: getLineName(ol), from: originSt.name, to: hub.name, stations: leg1, timeMins: time1 },
+                  { type: 'TRANSFER', stationName: hub.name, walkMins: hub.walkMins, fromLine: getLineName(ol), toLine: getLineName(dl) },
+                  { type: 'SUBWAY', line: dl, lineName: getLineName(dl), from: hub.name, to: destSt.name, stations: leg2, timeMins: time2 }
+                ]
+              });
+            }
+          }
         }
       }
-      if (chosenHubInfo) break;
+    });
+
+    // 3. 만약 경로가 2개 미만이라면, 2회 환승 대안(수영역 3호선 ➔ 연산역 1호선 등) 추가
+    if (routes.length < 2) {
+      const suyeong = ALL_STATIONS_MASTER.find(s => s.id === 'ST-BS-SY') || { id: 'ST-BS-SY', name: '수영역', lat: 35.1610, lng: 129.1165 };
+      const yeonsan = ALL_STATIONS_MASTER.find(s => s.id === 'ST-BS-YS') || { id: 'ST-BS-YS', name: '연산역', lat: 35.1861, lng: 129.0815 };
+
+      const leg1 = sliceLineStations(SUBWAY_LINE_2, originSt, suyeong);
+      const leg2 = sliceLineStations(SUBWAY_LINE_3, suyeong, yeonsan);
+      const leg3 = sliceLineStations(SUBWAY_LINE_1, yeonsan, destSt);
+
+      if (leg1.length > 0 && leg2.length > 0 && leg3.length > 0) {
+        const merged = [...leg1, ...leg2.slice(1), ...leg3.slice(1)];
+        const totalMins = Math.round(merged.length * 2.2 + 6);
+
+        routes.push({
+          routeId: routes.length,
+          title: '수영·연산역 2회 환승 (쾌적 우회)',
+          badgeType: 'alt',
+          badgeText: '2회 환승 대안',
+          timeMins: totalMins,
+          transfers: 2,
+          isTransfer: true,
+          transferStation: suyeong,
+          lineFrom: '2',
+          lineTo: '1',
+          lineFromName: '2호선',
+          lineToName: '1호선',
+          stations: merged,
+          coords: merged.map(s => [s.lat, s.lng]),
+          sections: [
+            { type: 'SUBWAY', line: '2', lineName: '2호선', from: originSt.name, to: '수영역', stations: leg1, timeMins: Math.round(leg1.length * 2.2) },
+            { type: 'TRANSFER', stationName: '수영역', walkMins: 3, fromLine: '2호선', toLine: '3호선' },
+            { type: 'SUBWAY', line: '3', lineName: '3호선', from: '수영역', to: '연산역', stations: leg2, timeMins: Math.round(leg2.length * 2.2) },
+            { type: 'TRANSFER', stationName: '연산역', walkMins: 3, fromLine: '3호선', toLine: '1호선' },
+            { type: 'SUBWAY', line: '1', lineName: '1호선', from: '연산역', to: destSt.name, stations: leg3, timeMins: Math.round(leg3.length * 2.2) }
+          ]
+        });
+      }
     }
 
-    // 환승 허브를 못 찾은 경우 기본 허브(서면)로 폴백
-    if (!chosenHubInfo) {
-      chosenHubInfo = transferHubs[0];
-      chosenLine1 = oLines[0] || '2';
-      chosenLine2 = dLines[0] || '1';
+    // 소요 시간순 정렬 (직통이 있으면 직통은 0번에 고정)
+    if (routes.length > 1 && !routes[0].isTransfer) {
+      const direct = routes[0];
+      const rest = routes.slice(1).sort((a, b) => a.timeMins - b.timeMins);
+      return [direct, ...rest];
     }
 
-    const hubStation = ALL_STATIONS_MASTER.find(s => s.id === chosenHubInfo.id) || {
-      id: chosenHubInfo.id,
-      name: chosenHubInfo.name,
-      lat: 35.1578,
-      lng: 129.0592
-    };
+    return routes.sort((a, b) => a.timeMins - b.timeMins);
+  }
 
-    // 구간 1 (출발역 -> 환승역)
-    const leg1 = sliceLineStations(getLineList(chosenLine1), originSt, hubStation);
-    // 구간 2 (환승역 -> 도착역)
-    const leg2 = sliceLineStations(getLineList(chosenLine2), hubStation, destSt);
-
-    // 연결부 스냅
-    leg1[leg1.length - 1] = { ...hubStation };
-    leg2[0] = { ...hubStation };
-
-    const mergedStations = [...leg1, ...leg2.slice(1)];
-    mergedStations[0] = { ...originSt };
-    mergedStations[mergedStations.length - 1] = { ...destSt };
-
-    const totalMins = Math.max(6, Math.round(mergedStations.length * 2.2 + 4)); // 환승 4분 포함
-
-    return {
-      isTransfer: true,
-      transfers: 1,
-      transferStation: hubStation,
-      lineFrom: chosenLine1,
-      lineTo: chosenLine2,
-      lineFromName: getLineName(chosenLine1),
-      lineToName: getLineName(chosenLine2),
-      stations: mergedStations,
-      coords: mergedStations.map(s => [s.lat, s.lng]),
-      timeMins: totalMins
-    };
+  function buildDynamicSubwayPath(originSt, destSt) {
+    const allRoutes = buildAllSubwayRoutes(originSt, destSt);
+    const selectedIdx = state.selectedSubwayRouteIndex || 0;
+    return allRoutes[selectedIdx] || allRoutes[0];
   }
 
   /**
@@ -3197,6 +3444,7 @@ document.addEventListener('DOMContentLoaded', () => {
           subColor = '#6366F1'; // 환승 구간 인디고
         }
 
+        subwayPolyline.setLatLngs(subData.coords);
         subwayPolyline.setStyle({
           color: subColor,
           opacity: 0.95,
