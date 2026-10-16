@@ -117,6 +117,34 @@ document.addEventListener('DOMContentLoaded', () => {
     btnOpenKakaoMap: document.getElementById('btnOpenKakaoMap'),
     btnClosePlaceNav: document.getElementById('btnClosePlaceNav'),
 
+    // Naver Place Detail Modal
+    naverPlaceDetailModal: document.getElementById('naverPlaceDetailModal'),
+    btnCloseNPlaceModal: document.getElementById('btnCloseNPlaceModal'),
+    btnShareNPlace: document.getElementById('btnShareNPlace'),
+    nplaceModalTitle: document.getElementById('nplaceModalTitle'),
+    nplaceModalCategory: document.getElementById('nplaceModalCategory'),
+    nplaceModalWalkMinutes: document.getElementById('nplaceModalWalkMinutes'),
+    nplaceModalBrandLogo: document.getElementById('nplaceModalBrandLogo'),
+    nplaceModalRating: document.getElementById('nplaceModalRating'),
+    nplaceModalReviews: document.getElementById('nplaceModalReviews'),
+    nplaceModalBadge: document.getElementById('nplaceModalBadge'),
+    nplaceModalDesc: document.getElementById('nplaceModalDesc'),
+    btnNPlaceCall: document.getElementById('btnNPlaceCall'),
+    btnNPlaceNav: document.getElementById('btnNPlaceNav'),
+    btnNPlaceAddCourse: document.getElementById('btnNPlaceAddCourse'),
+    btnNPlaceFav: document.getElementById('btnNPlaceFav'),
+    nplaceSignatureBox: document.getElementById('nplaceSignatureBox'),
+    nplaceSignatureName: document.getElementById('nplaceSignatureName'),
+    nplaceMenuListContainer: document.getElementById('nplaceMenuListContainer'),
+    nplaceAddressText: document.getElementById('nplaceAddressText'),
+    btnCopyAddress: document.getElementById('btnCopyAddress'),
+    nplaceHoursText: document.getElementById('nplaceHoursText'),
+    nplacePhoneText: document.getElementById('nplacePhoneText'),
+    nplacePriceRangeText: document.getElementById('nplacePriceRangeText'),
+    nplaceWalkText: document.getElementById('nplaceWalkText'),
+    nplaceMoodContainer: document.getElementById('nplaceMoodContainer'),
+    nplaceNavTabs: document.querySelectorAll('.nplace-tab-btn'),
+
     // Tabs & Cards
     tabs: document.querySelectorAll('.tab-btn'),
     fastestCard: document.getElementById('fastestCard'),
@@ -451,6 +479,60 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 10. Region Selector Setup
     setupRegionSelector();
+
+    // 11. Naver Place Detail Modal Event Listeners
+    if (el.btnCloseNPlaceModal) {
+      el.btnCloseNPlaceModal.addEventListener('click', closeNaverPlaceDetailModal);
+    }
+    if (el.naverPlaceDetailModal) {
+      el.naverPlaceDetailModal.addEventListener('click', (e) => {
+        if (e.target === el.naverPlaceDetailModal) closeNaverPlaceDetailModal();
+      });
+    }
+    if (el.btnCopyAddress) {
+      el.btnCopyAddress.addEventListener('click', () => {
+        if (activeDetailPlace && activeDetailPlace.address) {
+          navigator.clipboard.writeText(activeDetailPlace.address);
+          showToast(`📋 주소가 복사되었습니다: ${activeDetailPlace.address}`);
+        }
+      });
+    }
+    if (el.nplaceNavTabs) {
+      el.nplaceNavTabs.forEach(btn => {
+        btn.addEventListener('click', () => {
+          switchNPlaceTab(btn.dataset.tab);
+        });
+      });
+    }
+    if (el.btnNPlaceCall) {
+      el.btnNPlaceCall.addEventListener('click', () => {
+        if (activeDetailPlace && activeDetailPlace.phone) {
+          showToast(`📞 매장 전화: ${activeDetailPlace.phone}`);
+        }
+      });
+    }
+    if (el.btnNPlaceNav) {
+      el.btnNPlaceNav.addEventListener('click', () => {
+        if (activeDetailPlace) {
+          closeNaverPlaceDetailModal();
+          selectPlaceForNavigation(activeDetailPlace);
+        }
+      });
+    }
+    if (el.btnNPlaceAddCourse) {
+      el.btnNPlaceAddCourse.addEventListener('click', () => {
+        if (activeDetailPlace) {
+          addPlaceToCourse(activeDetailPlace);
+        }
+      });
+    }
+    if (el.btnNPlaceFav) {
+      el.btnNPlaceFav.addEventListener('click', () => {
+        if (activeDetailPlace) {
+          showToast(`⭐ [${activeDetailPlace.name}] 매장이 즐겨찾기에 저장되었습니다.`);
+        }
+      });
+    }
   }
 
   /**
@@ -1456,7 +1538,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <button class="btn-filter-tag ${currentFilter === 'OSM' ? 'active' : ''}" data-filter="OSM">🟢 실시간 OSM (${osmCount})</button>
       </div>
 
-      <!-- PLACES GRID -->
+      <!-- PLACES GRID (네이버 지도 스타일 검색결과 카드) -->
       <div class="places-grid-container">
         ${filteredList.map((item, idx) => {
           const distKm = (item.latitude && item.longitude)
@@ -1465,60 +1547,71 @@ document.addEventListener('DOMContentLoaded', () => {
           const distText = distKm >= 1 ? `${distKm.toFixed(1)}km` : `${Math.round(distKm * 1000)}m`;
           const walkMins = Math.max(1, Math.round((distKm * 1000) / 67));
           const isAdded = currentCourseNames.includes(item.name);
+          const shortBrand = (item.name || '').replace(/[\s\(\)\[\]점본점]/g, '').slice(0, 2) || '맛집';
 
           const menuHtml = (item.menuList && item.menuList.length > 0) ? `
             <div class="place-menu-board">
-              <div style="font-size:10.5px; font-weight:800; color:#475569; margin-bottom:4px; display:flex; justify-content:space-between;">
-                <span>📋 대표 메뉴판 (${item.priceRange || '1~2만원대'})</span>
-                <span style="color:#2563EB; font-weight:700;">네이버 실가격</span>
+              <div style="font-size:11px; font-weight:800; color:#334155; margin-bottom:5px; display:flex; justify-content:space-between; align-items:center;">
+                <span style="display:flex; align-items:center; gap:4px;">
+                  <span style="color:#03C75A; font-weight:900;">N</span> 대표 메뉴판 & 실시간 가격
+                </span>
+                <span style="color:#2563EB; font-weight:700;">1인 ${item.priceRange || '1~2만원대'}</span>
               </div>
               <div class="place-menu-items">
-                ${item.menuList.slice(0, 4).map(m => `<span class="place-menu-item-pill">${m}</span>`).join('')}
+                ${item.menuList.slice(0, 3).map(m => `<span class="place-menu-item-pill">${m}</span>`).join('')}
               </div>
             </div>
           ` : '';
 
           const moodHtml = item.moodTags ? `
             <div class="place-mood-row">
-              ${item.moodTags.split(' ').map(tag => `<span class="place-mood-chip">${tag}</span>`).join('')}
+              ${item.moodTags.split(' ').slice(0, 4).map(tag => `<span class="place-mood-chip">${tag}</span>`).join('')}
             </div>
           ` : '';
 
           return `
-            <div class="place-card-v2" data-name="${item.name}" style="cursor:pointer;">
-              <div class="place-image-wrap">
-                <img src="${item.imageUrl}" alt="${item.name}" class="place-thumb-img" onerror="this.src='https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=700&q=80'">
-                <div class="place-floating-tags">
-                  <span class="place-cat-tag">${item.category}</span>
-                  <span class="place-walk-tag" style="background:#0F172A;">📍 내 위치에서 ${distText}</span>
-                </div>
-              </div>
-              <div class="place-body-wrap">
-                <div class="place-name-row">
-                  <h3 class="place-title">${idx + 1}. ${item.name}</h3>
-                  <span class="place-badge-tag">${item.badge}</span>
-                </div>
-                ${item.signatureMenu ? `<div class="place-signature-badge">🔥 시그니처: ${item.signatureMenu}</div>` : ''}
-                <p class="place-description">${item.description}</p>
-                ${menuHtml}
-                ${moodHtml}
-                <div class="place-info-subtext">
-                  <span>🕒 ${item.businessHours || '영업시간 매장확인'}</span>
-                  ${item.phone ? `<span>📞 ${item.phone}</span>` : ''}
-                </div>
-                <div class="place-meta-footer" style="justify-content:space-between;">
+            <div class="place-card-v2" data-name="${item.name}" style="cursor:pointer; padding:14px 16px; border:1px solid #E2E8F0; border-radius:14px; background:#FFFFFF; margin-bottom:10px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                <div style="display:flex; gap:10px; align-items:center;">
+                  <div class="nplace-brand-logo-plate" style="width:42px; height:42px; font-size:14px; border-radius:10px; flex-shrink:0;">${shortBrand}</div>
                   <div>
-                    <span class="place-star-rating">★ ${item.googleRating}</span>
-                    <span style="margin-left:4px;">리뷰 ${item.reviewCount}건</span>
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                      <h3 style="font-size:16px; font-weight:800; color:#0F172A; margin:0;">${idx + 1}. ${item.name}</h3>
+                      <span class="nplace-auth-pill" style="font-size:9.5px; padding:1px 5px;">N PLACE</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
+                      <span style="font-size:11.5px; color:#64748B; font-weight:600;">${item.category}</span>
+                      <span style="font-size:11px; color:#CBD5E1;">·</span>
+                      <span style="font-size:11.5px; color:#2563EB; font-weight:700;">📍 ${distText} (도보 ${walkMins}분)</span>
+                    </div>
                   </div>
-                  <div style="display:flex; gap:6px; align-items:center;">
-                    <span style="color:#2563EB; font-weight:800; font-size:11.5px;">
-                      🚶 도보 ${walkMins}분 →
-                    </span>
-                    <button class="btn-add-course ${isAdded ? 'added' : ''}" data-name="${item.name}">
-                      ${isAdded ? '✓ 코스 담김' : '+ 코스 담기'}
-                    </button>
-                  </div>
+                </div>
+                <span class="place-badge-tag" style="white-space:nowrap; font-size:10px;">${item.badge}</span>
+              </div>
+
+              ${item.signatureMenu ? `
+                <div style="margin-top:8px;">
+                  <span class="place-signature-badge" style="font-size:11px; padding:3px 8px;">🔥 시그니처: ${item.signatureMenu}</span>
+                </div>
+              ` : ''}
+
+              <p style="font-size:12px; color:#475569; margin:6px 0 8px; line-height:1.4;">${item.description}</p>
+
+              ${menuHtml}
+              ${moodHtml}
+
+              <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #F1F5F9; padding-top:10px; margin-top:8px;">
+                <div style="font-size:12px;">
+                  <span style="color:#D97706; font-weight:800;">★ ${item.googleRating}</span>
+                  <span style="color:#64748B; margin-left:4px;">리뷰 ${(item.reviewCount || 1000).toLocaleString()}건</span>
+                </div>
+                <div style="display:flex; gap:6px; align-items:center;">
+                  <button class="btn-open-nplace-modal" data-name="${item.name}" style="background:#03C75A; color:#FFFFFF; border:none; padding:6px 11px; font-size:11.5px; font-weight:800; border-radius:6px; cursor:pointer;">
+                    📋 메뉴·가격 보기
+                  </button>
+                  <button class="btn-add-course ${isAdded ? 'added' : ''}" data-name="${item.name}" style="padding:6px 10px; font-size:11.5px;">
+                    ${isAdded ? '✓ 코스 담김' : '+ 코스 담기'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -1541,14 +1634,28 @@ document.addEventListener('DOMContentLoaded', () => {
       btnPresetTop.addEventListener('click', applyPresetCourse);
     }
 
-    // Place Cards Click Event (Walking Navigation & Map Pin)
+    // Place Cards & Open Detail Modal Event (네이버 지도 상세 뷰 팝업)
     const placeCards = el.busListContainer.querySelectorAll('.place-card-v2');
     placeCards.forEach(card => {
       card.addEventListener('click', (e) => {
-        if (e.target.closest('.btn-add-course')) return; // ignore click on button
+        if (e.target.closest('.btn-add-course')) return; // ignore click on course button
         const placeName = card.dataset.name;
         const targetPlace = allList.find(p => p.name === placeName);
-        if (targetPlace) selectPlaceForNavigation(targetPlace);
+        if (targetPlace) {
+          openNaverPlaceDetailModal(targetPlace);
+        }
+      });
+    });
+
+    const openModalBtns = el.busListContainer.querySelectorAll('.btn-open-nplace-modal');
+    openModalBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const placeName = btn.dataset.name;
+        const targetPlace = allList.find(p => p.name === placeName);
+        if (targetPlace) {
+          openNaverPlaceDetailModal(targetPlace);
+        }
       });
     });
 
@@ -1562,6 +1669,117 @@ document.addEventListener('DOMContentLoaded', () => {
         if (targetPlace) addPlaceToCourse(targetPlace);
       });
     });
+  }
+
+  // ========================================================
+  // NAVER PLACE DETAIL MODAL CONTROLLER
+  // ========================================================
+  let activeDetailPlace = null;
+
+  function openNaverPlaceDetailModal(place) {
+    if (!place || !el.naverPlaceDetailModal) return;
+    activeDetailPlace = place;
+
+    // 1. 상표 로고 플레이트
+    const shortBrand = (place.name || '').replace(/[\s\(\)\[\]점본점]/g, '').slice(0, 2) || '맛집';
+    if (el.nplaceModalBrandLogo) {
+      el.nplaceModalBrandLogo.textContent = shortBrand;
+    }
+
+    if (el.nplaceModalTitle) el.nplaceModalTitle.textContent = place.name;
+    if (el.nplaceModalCategory) el.nplaceModalCategory.textContent = place.category || '음식점';
+    if (el.nplaceModalWalkMinutes) el.nplaceModalWalkMinutes.textContent = `목적지 ${place.walkMinutes || '도보 3분'}`;
+    if (el.nplaceModalRating) el.nplaceModalRating.textContent = place.googleRating || '4.8';
+    if (el.nplaceModalReviews) el.nplaceModalReviews.textContent = (place.reviewCount || 1200).toLocaleString();
+    if (el.nplaceModalBadge) el.nplaceModalBadge.textContent = place.badge || 'N PLACE 공식등록';
+    if (el.nplaceModalDesc) el.nplaceModalDesc.textContent = place.description || '네이버 플레이스 등록 매장';
+
+    // 2. 시그니처 메뉴
+    if (place.signatureMenu) {
+      if (el.nplaceSignatureBox) el.nplaceSignatureBox.style.display = 'block';
+      if (el.nplaceSignatureName) el.nplaceSignatureName.textContent = place.signatureMenu;
+    } else {
+      if (el.nplaceSignatureBox) el.nplaceSignatureBox.style.display = 'none';
+    }
+
+    // 3. 메뉴 목록 렌더링
+    const menus = place.menuList || [];
+    if (el.nplaceMenuListContainer) {
+      if (menus.length > 0) {
+        el.nplaceMenuListContainer.innerHTML = menus.map(m => {
+          const match = m.match(/^(.*?)\s*\((.*?)\)$/);
+          const mName = match ? match[1].trim() : m;
+          const mPrice = match ? match[2].trim() : (place.priceRange || '10,000원~');
+          const isSig = place.signatureMenu && place.signatureMenu.includes(mName);
+
+          return `
+            <div class="nplace-menu-item-row">
+              <div class="nplace-menu-left">
+                <div class="nplace-menu-name-row">
+                  <span class="nplace-menu-name">${mName}</span>
+                  ${isSig ? '<span class="nplace-menu-sig-badge">대표</span>' : ''}
+                </div>
+                <div class="nplace-menu-desc">${place.name} 인기 추천 메뉴</div>
+              </div>
+              <div class="nplace-menu-price">${mPrice}</div>
+            </div>
+          `;
+        }).join('');
+      } else {
+        el.nplaceMenuListContainer.innerHTML = `
+          <div style="padding:16px; text-align:center; color:#64748B; font-size:12px;">
+            대표 1인 예산: ${place.priceRange || '1~2만원대'}<br>
+            상세 메뉴 및 가격은 매장 방문 시 확인 가능합니다.
+          </div>
+        `;
+      }
+    }
+
+    // 4. 정보 탭
+    if (el.nplaceAddressText) el.nplaceAddressText.textContent = place.address || '부산시내';
+    if (el.nplaceHoursText) el.nplaceHoursText.textContent = place.businessHours || '11:00 ~ 21:30';
+    if (el.nplacePhoneText) el.nplacePhoneText.textContent = place.phone || '051-808-1662 (매장 문의)';
+    if (el.nplacePriceRangeText) el.nplacePriceRangeText.textContent = place.priceRange || '1~2만원대 (1인 기준)';
+    if (el.nplaceWalkText) el.nplaceWalkText.textContent = `목적지 역 기준 ${place.walkMinutes || '도보 3분'}`;
+
+    // 5. 분위기 태그
+    if (el.nplaceMoodContainer) {
+      const tags = (place.moodTags || '#맛집 #추천').split(' ').filter(Boolean);
+      el.nplaceMoodContainer.innerHTML = tags.map(t => `<span class="nplace-mood-pill">${t}</span>`).join('');
+    }
+
+    // 코스 담기 버튼 상태 동기화
+    if (el.btnNPlaceAddCourse) {
+      const currentCourseNames = (state.activeAppointment?.coursePlaces || []).map(c => c.name);
+      const isAdded = currentCourseNames.includes(place.name);
+      el.btnNPlaceAddCourse.textContent = isAdded ? '✓ 코스 담김' : '+ 코스 담기';
+    }
+
+    // 기본 탭을 'menu'로 전환
+    switchNPlaceTab('menu');
+
+    el.naverPlaceDetailModal.classList.add('is-open');
+  }
+
+  function closeNaverPlaceDetailModal() {
+    if (el.naverPlaceDetailModal) {
+      el.naverPlaceDetailModal.classList.remove('is-open');
+    }
+  }
+
+  function switchNPlaceTab(tabName) {
+    if (el.nplaceNavTabs) {
+      el.nplaceNavTabs.forEach(btn => {
+        if (btn.dataset.tab === tabName) btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+    }
+    const tabMenu = document.getElementById('nplaceTabMenu');
+    const tabInfo = document.getElementById('nplaceTabInfo');
+    const tabMood = document.getElementById('nplaceTabMood');
+    if (tabMenu) tabMenu.style.display = (tabName === 'menu') ? 'block' : 'none';
+    if (tabInfo) tabInfo.style.display = (tabName === 'info') ? 'block' : 'none';
+    if (tabMood) tabMood.style.display = (tabName === 'mood') ? 'block' : 'none';
   }
 
   // COURSE & MIDPOINT HELPER FUNCTIONS

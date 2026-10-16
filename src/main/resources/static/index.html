@@ -577,6 +577,125 @@
   </div>
 </div>
 
+<!-- 9. MODAL: NAVER PLACE DETAIL VIEW (네이버 지도 스타일 매장 상세 및 메뉴 가격 뷰) -->
+<div class="dialog-overlay" id="naverPlaceDetailModal">
+  <div class="naver-place-sheet">
+    <!-- 헤더 상단 바 -->
+    <div class="nplace-sheet-topbar">
+      <div class="nplace-brand-badge">
+        <span class="nplace-icon-n">N</span>
+        <span class="nplace-brand-name">네이버 플레이스</span>
+        <span class="nplace-auth-pill">공식등록</span>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button class="nplace-btn-share" id="btnShareNPlace" title="약속 코스에 담기">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <button class="dialog-close" id="btnCloseNPlaceModal">&times;</button>
+      </div>
+    </div>
+
+    <!-- 장소 핵심 헤더 -->
+    <div class="nplace-header-section">
+      <div class="nplace-title-row">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div class="nplace-brand-logo-plate" id="nplaceModalBrandLogo">칸다</div>
+          <div>
+            <h2 class="nplace-title" id="nplaceModalTitle">칸다소바 서면본점</h2>
+            <div class="nplace-subhead">
+              <span class="nplace-category-badge" id="nplaceModalCategory">일식당 · 라멘</span>
+              <span class="nplace-walk-time" id="nplaceModalWalkMinutes">도보 3분</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="nplace-stats-row">
+        <span class="nplace-star">★ <strong id="nplaceModalRating">4.82</strong></span>
+        <span class="nplace-stat-divider">·</span>
+        <span class="nplace-reviews">방문자리뷰 <strong id="nplaceModalReviews">6,890</strong></span>
+        <span class="nplace-stat-divider">·</span>
+        <span class="nplace-badge-official" id="nplaceModalBadge">안심식당</span>
+      </div>
+      <p class="nplace-desc-text" id="nplaceModalDesc">도쿄 라멘 대회 우승 정통 마제소바 & 62가지 재료의 바질 아부라소바 전문점</p>
+    </div>
+
+    <!-- 네이버 액션 바 4대 버튼 -->
+    <div class="nplace-action-buttons">
+      <button class="nplace-action-btn" id="btnNPlaceCall">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        <span>전화걸기</span>
+      </button>
+      <button class="nplace-action-btn" id="btnNPlaceNav">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+        <span>길안내</span>
+      </button>
+      <button class="nplace-action-btn highlight" id="btnNPlaceAddCourse">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        <span>+ 코스 담기</span>
+      </button>
+      <button class="nplace-action-btn" id="btnNPlaceFav">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <span>즐겨찾기</span>
+      </button>
+    </div>
+
+    <!-- 네이버 플레이스 탭 바 -->
+    <div class="nplace-nav-tabs">
+      <button class="nplace-tab-btn active" data-tab="menu">📋 메뉴판 & 가격</button>
+      <button class="nplace-tab-btn" data-tab="info">ℹ️ 영업정보·위치</button>
+      <button class="nplace-tab-btn" data-tab="mood">🏷️ 분위기·특징</button>
+    </div>
+
+    <!-- 탭 1: 메뉴판 섹션 (실제 메뉴명 & 가격) -->
+    <div class="nplace-tab-content" id="nplaceTabMenu" style="display:block;">
+      <div class="nplace-signature-box" id="nplaceSignatureBox">
+        <div class="nplace-sig-tag">🔥 대표 시그니처 메뉴</div>
+        <div class="nplace-sig-name" id="nplaceSignatureName">동경식 정통 마제소바 & 수제 다시마식초</div>
+      </div>
+      <div class="nplace-menu-list" id="nplaceMenuListContainer">
+        <!-- 동적으로 메뉴 목록 렌더링 -->
+      </div>
+    </div>
+
+    <!-- 탭 2: 매장 정보/영업시간 섹션 -->
+    <div class="nplace-tab-content" id="nplaceTabInfo" style="display:none;">
+      <div class="nplace-info-table">
+        <div class="nplace-info-row">
+          <span class="info-label">📍 도로명 주소</span>
+          <div class="info-value">
+            <span id="nplaceAddressText">부산 부산진구 동천로 105 1층</span>
+            <button class="btn-copy-addr" id="btnCopyAddress">주소복사</button>
+          </div>
+        </div>
+        <div class="nplace-info-row">
+          <span class="info-label">🕒 영업시간</span>
+          <div class="info-value" id="nplaceHoursText">11:30 ~ 21:30 (브레이크 15:30~17:00)</div>
+        </div>
+        <div class="nplace-info-row">
+          <span class="info-label">📞 전화번호</span>
+          <div class="info-value" id="nplacePhoneText">051-808-1662</div>
+        </div>
+        <div class="nplace-info-row">
+          <span class="info-label">💰 1인 예산</span>
+          <div class="info-value" id="nplacePriceRangeText">1만원대</div>
+        </div>
+        <div class="nplace-info-row">
+          <span class="info-label">🚶 찾아가는 길</span>
+          <div class="info-value" id="nplaceWalkText">목적지 역 기준 도보 3분</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 탭 3: 분위기 및 특징 섹션 -->
+    <div class="nplace-tab-content" id="nplaceTabMood" style="display:none;">
+      <div class="nplace-mood-container" id="nplaceMoodContainer">
+        <!-- 분위기 태그들 -->
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <!-- TOAST NOTIFICATION MESSAGE -->
 <div class="app-toast-container" id="appToast"></div>
 

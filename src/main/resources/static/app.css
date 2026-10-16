@@ -2383,4 +2383,382 @@ body, html {
   border: 1px solid #BFDBFE;
 }
 
+/* ========================================================
+   NAVER MAPS STYLE PLACE DETAIL SHEET & MENU BOARD
+   ======================================================== */
+.naver-place-sheet {
+  background: #FFFFFF;
+  border-radius: 20px 20px 16px 16px;
+  width: 100%;
+  max-width: 460px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  animation: slideUpSheet 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes slideUpSheet {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.nplace-sheet-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px 10px;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.nplace-brand-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nplace-icon-n {
+  background: #03C75A;
+  color: #FFFFFF;
+  font-weight: 900;
+  font-size: 11px;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nplace-brand-name {
+  font-size: 12px;
+  font-weight: 800;
+  color: #03C75A;
+}
+
+.nplace-auth-pill {
+  background: #E8F8EE;
+  color: #029E46;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.nplace-btn-share {
+  background: #F1F5F9;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  cursor: pointer;
+}
+
+.nplace-header-section {
+  padding: 16px 20px 12px;
+  border-bottom: 8px solid #F8FAFC;
+}
+
+.nplace-brand-logo-plate {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #03C75A, #00A843);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 900;
+  box-shadow: 0 4px 10px rgba(3, 199, 90, 0.25);
+  flex-shrink: 0;
+}
+
+.nplace-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0F172A;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.nplace-subhead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.nplace-category-badge {
+  font-size: 12px;
+  color: #64748B;
+  font-weight: 600;
+}
+
+.nplace-walk-time {
+  font-size: 11px;
+  color: #2563EB;
+  font-weight: 700;
+  background: #EFF6FF;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.nplace-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 8px;
+  font-size: 12.5px;
+}
+
+.nplace-star {
+  color: #D97706;
+  font-weight: 700;
+}
+
+.nplace-reviews strong {
+  color: #0F172A;
+}
+
+.nplace-stat-divider {
+  color: #CBD5E1;
+}
+
+.nplace-badge-official {
+  background: #F1F5F9;
+  color: #0284C7;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.nplace-desc-text {
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.45;
+  margin: 6px 0 0;
+}
+
+/* 네이버 4대 액션 버튼 바 */
+.nplace-action-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 12px 18px;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.nplace-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 4px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nplace-action-btn:hover {
+  background: #F1F5F9;
+}
+
+.nplace-action-btn.highlight {
+  background: #03C75A;
+  color: #FFFFFF;
+  border-color: #03C75A;
+}
+
+.nplace-action-btn.highlight:hover {
+  background: #02A84C;
+}
+
+/* 네이버 플레이스 탭 바 */
+.nplace-nav-tabs {
+  display: flex;
+  border-bottom: 1px solid #E2E8F0;
+  padding: 0 16px;
+  background: #FFFFFF;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.nplace-tab-btn {
+  flex: 1;
+  padding: 12px 8px;
+  background: none;
+  border: none;
+  border-bottom: 2.5px solid transparent;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #64748B;
+  cursor: pointer;
+  text-align: center;
+}
+
+.nplace-tab-btn.active {
+  color: #03C75A;
+  border-bottom-color: #03C75A;
+}
+
+.nplace-tab-content {
+  padding: 16px 20px 24px;
+}
+
+/* 메뉴판 섹션 (네이버 지도 스타일) */
+.nplace-signature-box {
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+
+.nplace-sig-tag {
+  color: #DC2626;
+  font-size: 11px;
+  font-weight: 800;
+  margin-bottom: 2px;
+}
+
+.nplace-sig-name {
+  color: #991B1B;
+  font-size: 13.5px;
+  font-weight: 800;
+}
+
+.nplace-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.nplace-menu-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.nplace-menu-item-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.nplace-menu-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  padding-right: 12px;
+}
+
+.nplace-menu-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nplace-menu-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: #0F172A;
+}
+
+.nplace-menu-sig-badge {
+  background: #FEF3C7;
+  color: #B45309;
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.nplace-menu-desc {
+  font-size: 11px;
+  color: #64748B;
+  line-height: 1.35;
+}
+
+.nplace-menu-price {
+  font-size: 14.5px;
+  font-weight: 900;
+  color: #03C75A;
+  white-space: nowrap;
+}
+
+/* 매장 정보 테이블 */
+.nplace-info-table {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.nplace-info-row {
+  display: flex;
+  gap: 14px;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.info-label {
+  width: 85px;
+  font-weight: 700;
+  color: #64748B;
+  flex-shrink: 0;
+}
+
+.info-value {
+  color: #0F172A;
+  font-weight: 500;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.btn-copy-addr {
+  background: #F1F5F9;
+  border: 1px solid #CBD5E1;
+  font-size: 10px;
+  font-weight: 700;
+  color: #334155;
+  padding: 1px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.nplace-mood-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.nplace-mood-pill {
+  background: #F0FDF4;
+  color: #166534;
+  border: 1px solid #BBF7D0;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+
 
