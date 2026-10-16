@@ -1996,6 +1996,8 @@ document.addEventListener('DOMContentLoaded', () => {
     { id: 'ST-BS-NPST', name: '남포역', lat: 35.0979, lng: 129.0348 },
     { id: 'ST-BS-BSST', name: '부산역', lat: 35.1152, lng: 129.0422 },
     { id: 'ST-BS-CR', name: '초량역', lat: 35.1205, lng: 129.0440 },
+    { id: 'ST-BS-BJIN', name: '부산진역', lat: 35.1278, lng: 129.0505 },
+    { id: 'ST-BS-BI', name: '범일역', lat: 35.1410, lng: 129.0590 },
     { id: 'ST-BS-BNG', name: '범내골역', lat: 35.1481, lng: 129.0597 },
     { id: 'ST-BS-SMN', name: '서면역', lat: 35.1578, lng: 129.0592 },
     { id: 'ST-BS-YJ', name: '양정역', lat: 35.1730, lng: 129.0713 },
@@ -2020,6 +2022,8 @@ document.addEventListener('DOMContentLoaded', () => {
     { id: 'ST-BS-KSU', name: '경성대·부경대역', lat: 35.13654, lng: 129.09794 },
     { id: 'ST-BS-DY', name: '대연역', lat: 35.13545, lng: 129.09210 },
     { id: 'ST-BS-MG', name: '못골역', lat: 35.13605, lng: 129.08470 },
+    { id: 'ST-BS-JGG', name: '지게골역', lat: 35.13735, lng: 129.07605 },
+    { id: 'ST-BS-MH', name: '문현역', lat: 35.13885, lng: 129.06640 },
     { id: 'ST-BS-BIFC', name: '국제금융센터역', lat: 35.1475, lng: 129.0647 },
     { id: 'ST-BS-JP', name: '전포역', lat: 35.1542, lng: 129.0632 },
     { id: 'ST-BS-SMN', name: '서면역', lat: 35.1578, lng: 129.0592 },
@@ -2085,7 +2089,7 @@ document.addEventListener('DOMContentLoaded', () => {
       sliced = lineArr.slice(idxB, idxA + 1).reverse();
     }
 
-    // 마커 좌표와 선로 시작/끝점이 100% 밀착(Snap)되도록 보정하여 선 끊김 원천 차단
+    // 마커 좌표와 선로 시작/끝점이 100% 밀착(Snap)되도록 보정
     const res = sliced.map(s => ({ ...s }));
     if (res.length === 0) {
       res.push({ ...stA }, { ...stB });
@@ -2097,10 +2101,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ========================================================
-  // CLEAN TRANSIT CORRIDOR ROAD GRAPH ROUTER (NO ROUNDABOUTS)
+  // REAL BUSAN TRANSIT CORRIDOR ROAD GRAPH ROUTER
   // ========================================================
   const CORRIDORS = {
-    // 1. 중앙대로 남부축 (다대포 - 하단 - 자갈치 - 남포 - 부산역 - 서면)
+    // 1. 중앙대로 본선축 (다대포 - 하단 - 자갈치 - 남포 - 부산역 - 초량 - 범내골 - 서면)
     JUNGANG_SOUTH: [
       { id: 'ST-BS-DDP', lat: 35.0483, lng: 128.9652, name: '다대포해수욕장' },
       { id: 'ROAD-DDP-HD', lat: 35.0750, lng: 128.9660 },
@@ -2112,12 +2116,33 @@ document.addEventListener('DOMContentLoaded', () => {
       { id: 'ROAD-NP-BS', lat: 35.1100, lng: 129.0390 },
       { id: 'ST-BS-BSST', lat: 35.1152, lng: 129.0422, name: '부산역' },
       { id: 'ST-BS-CR', lat: 35.1205, lng: 129.0440, name: '초량역' },
-      { id: 'ROAD-CR-BNG', lat: 35.1350, lng: 129.0520 },
+      { id: 'ROAD-CR-BJIN', lat: 35.1278, lng: 129.0505 },
+      { id: 'ROAD-BJIN-BNG', lat: 35.1410, lng: 129.0590 },
       { id: 'ST-BS-BNG', lat: 35.1481, lng: 129.0597, name: '범내골역' },
       { id: 'ST-BS-SMN', lat: 35.1578, lng: 129.0592, name: '서면역' }
     ],
 
-    // 2. 중앙대로 북부축 (서면 - 양정 - 연산 - 교대 - 동래 - 온천장 - 부산대 - 노포)
+    // 2. 대연 ↔ 부산역 황금 직통 간선 (문현교차로 - 자성대 - 부산진역 - 초량 - 부산역)
+    // * 서면으로 우회하지 않고 27번, 40번, 41번 버스처럼 최단 도로 직행!
+    DAEYEON_TO_BUSAN_STATION: [
+      { id: 'ST-BS-SY', lat: 35.1610, lng: 129.1165, name: '수영역' },
+      { id: 'ST-BS-GA', lat: 35.1525, lng: 129.1155, name: '광안역' },
+      { id: 'ST-BS-GRS', lat: 35.1465, lng: 129.1128, name: '금련산역' },
+      { id: 'ST-BS-NC', lat: 35.1415, lng: 129.1085, name: '남천역' },
+      { id: 'ST-BS-KSU', lat: 35.1365, lng: 129.0979, name: '경성대·부경대역' },
+      { id: 'ST-BS-DY', lat: 35.1354, lng: 129.0921, name: '대연역' },
+      { id: 'ST-BS-MG', lat: 35.1360, lng: 129.0847, name: '못골역' },
+      { id: 'ROAD-MG-JGG', lat: 35.1370, lng: 129.0760 },
+      { id: 'ROAD-JGG-MH', lat: 35.1388, lng: 129.0664 }, // 문현교차로
+      { id: 'ROAD-MH-JSD', lat: 35.1345, lng: 129.0600 }, // 자성대 / 범일교 직결로
+      { id: 'ROAD-JSD-BJIN', lat: 35.1278, lng: 129.0505 }, // 부산진역
+      { id: 'ST-BS-CR', lat: 35.1205, lng: 129.0440, name: '초량역' },
+      { id: 'ST-BS-BSST', lat: 35.1152, lng: 129.0422, name: '부산역' },
+      { id: 'ST-BS-NPST', lat: 35.0979, lng: 129.0348, name: '남포역' },
+      { id: 'ST-BS-JGC', lat: 35.0975, lng: 129.0267, name: '자갈치역' }
+    ],
+
+    // 3. 중앙대로 북부축 (서면 - 양정 - 연산 - 교대 - 동래 - 온천장 - 부산대 - 노포)
     JUNGANG_NORTH: [
       { id: 'ST-BS-SMN', lat: 35.1578, lng: 129.0592, name: '서면역' },
       { id: 'ST-BS-YJ', lat: 35.1730, lng: 129.0713, name: '양정역' },
@@ -2130,7 +2155,7 @@ document.addEventListener('DOMContentLoaded', () => {
       { id: 'ST-BS-NP', lat: 35.2846, lng: 129.0949, name: '노포역' }
     ],
 
-    // 3. 수영로 동부축 (서면 - 전포 - BIFC - 문현 - 못골 - 대연 - 경성대 - 남천 - 광안 - 수영)
+    // 4. 수영로 동부축 (서면 - 전포 - BIFC - 문현 - 못골 - 대연 - 경성대 - 남천 - 광안 - 수영)
     SUYEONG_EAST: [
       { id: 'ST-BS-SMN', lat: 35.1578, lng: 129.0592, name: '서면역' },
       { id: 'ROAD-SMN-JP', lat: 35.1558, lng: 129.0620 },
@@ -2150,7 +2175,7 @@ document.addEventListener('DOMContentLoaded', () => {
       { id: 'ST-BS-SY', lat: 35.1610, lng: 129.1165, name: '수영역' }
     ],
 
-    // 4. 해운대로 & 기장대로축 (수영 - 센텀시티 - 벡스코 - 해운대 - 장산 - 오시리아 - 기장)
+    // 5. 해운대로 & 기장대로축 (수영 - 센텀시티 - 벡스코 - 해운대 - 장산 - 오시리아 - 기장)
     HAEUNDAE_EAST: [
       { id: 'ST-BS-SY', lat: 35.1610, lng: 129.1165, name: '수영역' },
       { id: 'ROAD-SY-CT', lat: 35.1645, lng: 129.1240 },
@@ -2166,7 +2191,7 @@ document.addEventListener('DOMContentLoaded', () => {
       { id: 'ST-BS-ILG', lat: 35.2657, lng: 129.2332, name: '일광역' }
     ],
 
-    // 5. 가야대로 & 백양대로축 (서면 - 부암 - 주례 - 사상 - 덕천 - 화명)
+    // 6. 가야대로 & 백양대로축 (서면 - 부암 - 주례 - 사상 - 덕천 - 화명)
     SASANG_WEST: [
       { id: 'ST-BS-SMN', lat: 35.1578, lng: 129.0592, name: '서면역' },
       { id: 'ST-BS-BA', lat: 35.1598, lng: 129.0505, name: '부암역' },
@@ -2231,8 +2256,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let rawPts = [];
 
-    // 1. 동일한 간선축에 있거나, 한쪽이 서면인 경우: 바로 해당 축의 도로만 슬라이스 (직행)
-    if (cOrigin === cDest && cOrigin !== 'HUB') {
+    // [특급 최단 직통]: 대연/광안/남구 ↔ 부산역/남포 이동 시 (문현-자성대-부산역 직결로 적용! 서면 우회 0%)
+    const isDaeyeonOrigin = (cOrigin === 'SUYEONG_EAST');
+    const isBusanStationDest = (cDest === 'JUNGANG_SOUTH');
+    const isBusanStationOrigin = (cOrigin === 'JUNGANG_SOUTH');
+    const isDaeyeonDest = (cDest === 'SUYEONG_EAST');
+
+    if ((isDaeyeonOrigin && isBusanStationDest) || (isBusanStationOrigin && isDaeyeonDest)) {
+      rawPts = sliceCorridorPts(CORRIDORS.DAEYEON_TO_BUSAN_STATION, originSt, destSt);
+    } else if (cOrigin === cDest && cOrigin !== 'HUB') {
+      // 1. 동일한 간선축 직행
       rawPts = sliceCorridorPts(CORRIDORS[cOrigin], originSt, destSt);
     } else if (cOrigin === 'HUB' && cDest !== 'HUB') {
       rawPts = sliceCorridorPts(CORRIDORS[cDest], originSt, destSt);
@@ -2240,7 +2273,7 @@ document.addEventListener('DOMContentLoaded', () => {
       rawPts = sliceCorridorPts(CORRIDORS[cOrigin], originSt, destSt);
     } else if ((cOrigin === 'SUYEONG_EAST' && cDest === 'HAEUNDAE_EAST') ||
                (cOrigin === 'HAEUNDAE_EAST' && cDest === 'SUYEONG_EAST')) {
-      // 2. 수영로축(대연/광안) ↔ 해운대축(해운대/기장): 수영역에서 직결
+      // 2. 수영로축 ↔ 해운대축: 수영역에서 직결
       if (cOrigin === 'SUYEONG_EAST') {
         const leg1 = sliceCorridorPts(CORRIDORS.SUYEONG_EAST, originSt, suyeongHub);
         const leg2 = sliceCorridorPts(CORRIDORS.HAEUNDAE_EAST, suyeongHub, destSt);
@@ -2251,13 +2284,13 @@ document.addEventListener('DOMContentLoaded', () => {
         rawPts = [...leg1, [suyeongHub.lat, suyeongHub.lng], ...leg2];
       }
     } else {
-      // 3. 기타 서로 다른 간선축 간 이동: 서면 허브에서 깨끗하게 연결
+      // 3. 기타 서로 다른 간선축: 서면 허브 직결
       const pts1 = sliceCorridorPts(CORRIDORS[cOrigin] || CORRIDORS.SUYEONG_EAST, originSt, seomyeonHub);
       const pts2 = sliceCorridorPts(CORRIDORS[cDest] || CORRIDORS.JUNGANG_SOUTH, seomyeonHub, destSt);
       rawPts = [...pts1, [seomyeonHub.lat, seomyeonHub.lng], ...pts2];
     }
 
-    // 마커 좌표에 100% 밀착(Snap) 보정하여 역 마커와 도로선 사이의 틈(gap) 및 끊김 원천 차단
+    // 마커 좌표에 100% 밀착(Snap) 보정
     let path = rawPts.slice();
     if (path.length === 0) {
       path = [[originSt.lat, originSt.lng], [destSt.lat, destSt.lng]];
