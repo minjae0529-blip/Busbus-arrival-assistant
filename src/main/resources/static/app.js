@@ -15,7 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
     activeTab: 'destination', // 'destination' | 'all-arrivals' | 'appointments' | 'recommendations' | 'favorites'
     transitMode: 'BUS', // 'BUS' | 'SUBWAY'
     showIntermediateStops: false, // 사용자가 노선을 누를 때만 경유 정류소 표시!
-    showTraffic: true, // T-Map / 네비게이션 실시간 도로 소통 정보 표시
     selectedPlaceForNav: null, // 도보 길안내 선택된 장소
     selectedPlaceFilter: 'ALL', // 'ALL' | 'FRIEND' | 'SOLO' | 'PLAY' | 'CAFE' | 'FOOD'
     selectedRegion: 'ALL', // 부산 권역: 'ALL', 'SEOMYEON', 'HAEUNDAE', 'GWANGAN', etc.
@@ -55,13 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnRefreshGps: document.getElementById('btnRefreshGps'),
     btnCenterUserGps: document.getElementById('btnCenterUserGps'),
 
-    // Floating Map & Traffic Controls
-    btnToggleTraffic: document.getElementById('btnToggleTraffic'),
-    trafficLegend: document.getElementById('trafficLegend'),
-    btnFloatBus: document.getElementById('btnFloatBus'),
-    btnFloatSubway: document.getElementById('btnFloatSubway'),
-
-    // Transit Route Tab Selectors (대중교통 버튼 선택기)
+    // Transit Route Tab Selectors (대중교통 원클릭 버튼 선택기)
     btnTabBusRoute: document.getElementById('btnTabBusRoute'),
     btnTabSubwayRoute: document.getElementById('btnTabSubwayRoute'),
 
@@ -226,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 2. Navigation Modes (Bus vs Subway)
-    // 2-A. 길찾기 상단 원클릭 대중교통 탭 버튼
+    // 2-A. 길찾기 상단 원클릭 대중교통 탭 버튼 (원하는 대중교통 경로 즉시 선택)
     if (el.btnTabBusRoute) {
       el.btnTabBusRoute.addEventListener('click', () => {
         setTransitMode('BUS');
@@ -236,23 +229,6 @@ document.addEventListener('DOMContentLoaded', () => {
       el.btnTabSubwayRoute.addEventListener('click', () => {
         setTransitMode('SUBWAY');
       });
-    }
-
-    // 2-B. 지도 우측 상단 플로팅 퀵 스위처
-    if (el.btnFloatBus) {
-      el.btnFloatBus.addEventListener('click', () => {
-        setTransitMode('BUS');
-      });
-    }
-    if (el.btnFloatSubway) {
-      el.btnFloatSubway.addEventListener('click', () => {
-        setTransitMode('SUBWAY');
-      });
-    }
-
-    // 2-C. 실시간 교통상황 (T-Map / 네비게이션 연동) On/Off 토글
-    if (el.btnToggleTraffic) {
-      el.btnToggleTraffic.addEventListener('click', toggleTrafficLayer);
     }
 
     // 2-D. 기존 옵션 카드 클릭 핸들러
@@ -812,8 +788,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (el.btnSelectSubwayMode) el.btnSelectSubwayMode.classList.remove('active');
       if (el.btnTabBusRoute) el.btnTabBusRoute.classList.add('active');
       if (el.btnTabSubwayRoute) el.btnTabSubwayRoute.classList.remove('active');
-      if (el.btnFloatBus) el.btnFloatBus.classList.add('active');
-      if (el.btnFloatSubway) el.btnFloatSubway.classList.remove('active');
 
       if (el.miniModeBadge) el.miniModeBadge.textContent = `🚌 ${recommendedBus} 도로 노선`;
       if (el.miniSummaryText) el.miniSummaryText.textContent = `${originName} ➔ ${destName} 버스 (${busTime}분 소요)`;
@@ -824,8 +798,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (el.btnSelectBusMode) el.btnSelectBusMode.classList.remove('active');
       if (el.btnTabSubwayRoute) el.btnTabSubwayRoute.classList.add('active');
       if (el.btnTabBusRoute) el.btnTabBusRoute.classList.remove('active');
-      if (el.btnFloatSubway) el.btnFloatSubway.classList.add('active');
-      if (el.btnFloatBus) el.btnFloatBus.classList.remove('active');
 
       const subLabel = subData.isTransfer
         ? `🚇 ${subData.lineFromName}➔${subData.lineToName} 환승`
@@ -835,31 +807,6 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast(`${subLabel} 선로 경로가 지도에 표시됩니다.`);
     }
     renderCurrentTab();
-    drawMap();
-  }
-
-  /**
-   * 실시간 교통상황 (T-Map / 네비게이션 연동) On/Off 토글
-   */
-  function toggleTrafficLayer() {
-    state.showTraffic = !state.showTraffic;
-    if (el.btnToggleTraffic) {
-      if (state.showTraffic) el.btnToggleTraffic.classList.add('active');
-      else el.btnToggleTraffic.classList.remove('active');
-    }
-    if (el.trafficLegend) {
-      el.trafficLegend.style.display = state.showTraffic ? 'flex' : 'none';
-    }
-
-    if (leafletMap && trafficLayer) {
-      if (state.showTraffic) {
-        if (!leafletMap.hasLayer(trafficLayer)) trafficLayer.addTo(leafletMap);
-        showToast('🚦 실시간 도로 교통상황 (T-Map / 네비게이션) 켜짐');
-      } else {
-        if (leafletMap.hasLayer(trafficLayer)) leafletMap.removeLayer(trafficLayer);
-        showToast('실시간 도로 교통상황 꺼짐');
-      }
-    }
     drawMap();
   }
 
@@ -1969,8 +1916,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let stationMarkersGroup = null;
   let liveBusMarkersGroup = null;
   let hotplaceMarkerGroup = null;
-  let trafficLayer = null;
-  let trafficPolylinesGroup = null;
   let currentTileLayer = null;
 
   // ========================================================
@@ -2639,22 +2584,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     currentTileLayer = tileLayers.google.addTo(leafletMap);
 
-    // Google Maps 공식 실시간 도로 교통 레이어 (T-Map / 네비게이션 스타일 교통 흐름)
-    trafficLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=h,traffic&hl=ko&x={x}&y={y}&z={z}&scale=2', {
-      tileSize: 256,
-      maxNativeZoom: 19,
-      maxZoom: 19,
-      opacity: 0.88,
-      zIndex: 350
-    });
-    if (state.showTraffic) {
-      trafficLayer.addTo(leafletMap);
-    }
-
     stationMarkersGroup = L.layerGroup().addTo(leafletMap);
     liveBusMarkersGroup = L.layerGroup().addTo(leafletMap);
     hotplaceMarkerGroup = L.layerGroup().addTo(leafletMap);
-    trafficPolylinesGroup = L.layerGroup().addTo(leafletMap);
 
     busPolyline = L.polyline(initialBusCoords, {
       color: '#2563EB',
@@ -2722,7 +2654,6 @@ document.addEventListener('DOMContentLoaded', () => {
     stationMarkersGroup.clearLayers();
     liveBusMarkersGroup.clearLayers();
     if (hotplaceMarkerGroup) hotplaceMarkerGroup.clearLayers();
-    if (trafficPolylinesGroup) trafficPolylinesGroup.clearLayers();
 
     const isSubway = state.transitMode === 'SUBWAY';
     const showAllStops = state.showIntermediateStops;
@@ -2730,7 +2661,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Transit Lines Styling: 버스 이용 시 버스 노선 경로대로만 표시, 지하철 이용 시 지하철 노선 경로대로만 표시
     if (busPolyline && subwayPolyline) {
       if (isSubway) {
-        // [지하철 모드]: 버스 도로선 및 교통 오버레이 완전 숨김, 지하철 선로만 노선 고유색으로 표시
+        // [지하철 모드]: 버스 도로선은 완전 숨김, 지하철 선로만 노선 고유색으로 표시
         busPolyline.setStyle({ opacity: 0, weight: 0 });
 
         const subData = buildDynamicSubwayPath(state.originStation, state.destStation);
@@ -2750,51 +2681,15 @@ document.addEventListener('DOMContentLoaded', () => {
           dashArray: null
         });
       } else {
-        // [버스 모드]: 지하철 선로는 완전 숨김, 버스 노선 도로 궤적 표시
+        // [버스 모드]: 지하철 선로는 완전 숨김, 버스 노선 도로 궤적만 선명하게 표시
         subwayPolyline.setStyle({ opacity: 0, weight: 0 });
 
-        const activeRoad = (state.activeBusCoords && state.activeBusCoords.length > 0)
-          ? state.activeBusCoords
-          : CORRIDORS.SUYEONG_EAST.map(p => [p.lat, p.lng]);
-
-        if (state.showTraffic && activeRoad.length >= 2 && trafficPolylinesGroup) {
-          // T-Map 네비게이션 스타일 구간별 실시간 교통 소통 색상 렌더링
-          // 밑바탕 도로선
-          busPolyline.setStyle({
-            color: '#1E3A8A',
-            opacity: 0.30,
-            weight: 8,
-            dashArray: null
-          });
-
-          // 도로 좌표를 구간 분할하여 실시간 교통 상태(원활 🟢, 서행 🟡, 정체 🔴) 부여
-          const n = activeRoad.length;
-          const seg1End = Math.floor(n * 0.35);
-          const seg2End = Math.floor(n * 0.70);
-
-          const segPts1 = activeRoad.slice(0, seg1End + 1);
-          const segPts2 = activeRoad.slice(seg1End, seg2End + 1);
-          const segPts3 = activeRoad.slice(seg2End);
-
-          if (segPts1.length >= 2) {
-            L.polyline(segPts1, { color: '#10B981', weight: 6, opacity: 0.95 }).addTo(trafficPolylinesGroup);
-          }
-          if (segPts2.length >= 2) {
-            const isHeavy = (n >= 5);
-            L.polyline(segPts2, { color: isHeavy ? '#EF4444' : '#F59E0B', weight: 6, opacity: 0.95 }).addTo(trafficPolylinesGroup);
-          }
-          if (segPts3.length >= 2) {
-            L.polyline(segPts3, { color: '#10B981', weight: 6, opacity: 0.95 }).addTo(trafficPolylinesGroup);
-          }
-        } else {
-          // 일반 블루 도로선
-          busPolyline.setStyle({
-            color: '#2563EB',
-            opacity: 0.95,
-            weight: 6,
-            dashArray: null
-          });
-        }
+        busPolyline.setStyle({
+          color: '#2563EB',
+          opacity: 0.95,
+          weight: 6,
+          dashArray: null
+        });
       }
     }
 

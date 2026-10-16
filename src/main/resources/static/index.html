@@ -76,34 +76,12 @@
     </div>
   </header>
 
-  <!-- 3. FLOATING MAP LAYER CONTROLS (우측 상단 지도 타일 & 실시간 교통상황 & 대중교통 전환) -->
+  <!-- 3. FLOATING MAP LAYER CONTROLS (우측 상단 공식 구글 지도 타일) -->
   <div class="floating-map-tools">
     <div class="tile-switch-capsule">
       <button id="btnTileGoogle" class="tile-toggle-btn active" title="구글 일반 도로/건물 지도">일반지도</button>
       <button id="btnTileHybrid" class="tile-toggle-btn" title="구글 위성 항공사진">위성</button>
       <button id="btnTileOsm" class="tile-toggle-btn" title="상세 보행 골목길">골목길</button>
-    </div>
-
-    <!-- REAL-TIME TRAFFIC & TRANSIT QUICK TOGGLE -->
-    <div class="traffic-switch-capsule">
-      <button id="btnToggleTraffic" class="traffic-toggle-btn active" title="실시간 도로 소통상황 On/Off (T-Map / 네비게이션 연동)">
-        <span class="traffic-dot live-pulse"></span>
-        <span class="traffic-btn-text">🚦 실시간 교통</span>
-      </button>
-      <div class="transit-quick-switch">
-        <button id="btnFloatBus" class="float-mode-btn active" title="지도에 버스 노선 표시">🚌 버스</button>
-        <button id="btnFloatSubway" class="float-mode-btn" title="지도에 지하철 노선 표시">🚇 지하철</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- T-MAP STYLE TRAFFIC LEGEND BAR (실시간 도로 소통 정보 범례) -->
-  <div class="traffic-legend-capsule" id="trafficLegend">
-    <div class="legend-title">🚦 실시간 도로 소통</div>
-    <div class="legend-items">
-      <span class="legend-item"><span class="legend-color smooth"></span>원활 (&gt;50)</span>
-      <span class="legend-item"><span class="legend-color slow"></span>서행 (25~50)</span>
-      <span class="legend-item"><span class="legend-color heavy"></span>정체 (&lt;25)</span>
     </div>
   </div>
 
