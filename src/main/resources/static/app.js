@@ -12,6 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
     activeBusCoords: [],
     activeSubwayCoords: [],
     activeTransitStops: [],
+    busDriveDistanceMeters: null, // OSRM 실측 주행 거리 (meters)
+    busDriveDurationSecs: null,   // OSRM 실측 주행 시간 (seconds)
     activeTab: 'destination', // 'destination' | 'all-arrivals' | 'appointments' | 'recommendations' | 'favorites'
     transitMode: 'BUS', // 'BUS' | 'SUBWAY'
     showIntermediateStops: false, // 사용자가 노선을 누를 때만 경유 정류소 표시!
@@ -512,11 +514,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (el.inputNavDest) el.inputNavDest.value = `${destSt.name} (${destSt.subName || ''})`.trim();
     if (el.gpsStatusText) el.gpsStatusText.textContent = `${originSt.name} (선택)`;
 
-    // 도로 버스 궤적 및 지하철 궤적 동적 추출 (환승 지원 전역 엔진)
-    state.activeBusCoords = buildDynamicRoadPath(originSt, destSt);
+    // 1. 지하철 궤적 및 경유역 데이터 추출
     const subData = buildDynamicSubwayPath(originSt, destSt);
     state.activeSubwayCoords = subData.coords;
     state.activeTransitStops = extractTransitStopsBetween(originSt, destSt);
+
+    // 2. OSRM 실제 도로 내비게이션 라우팅 (실시간 도로망 굴곡 100% 반영)
+    const osrmResult = await fetchOsrmRoute(originSt, destSt);
+    if (osrmResult && osrmResult.coords && osrmResult.coords.length > 0) {
+      state.activeBusCoords = osrmResult.coords;
+      state.busDriveDistanceMeters = osrmResult.distance;
+      state.busDriveDurationSecs = osrmResult.duration;
+    } else {
+      // OSRM 오프라인/지연 시 안전한 간선 직결 폴백 엔진 적용
+      state.activeBusCoords = buildDynamicRoadPath(originSt, destSt);
+      state.busDriveDistanceMeters = null;
+      state.busDriveDurationSecs = null;
+    }
 
     // 폴라인 실시간 좌표 갱신
     if (busPolyline && state.activeBusCoords.length > 0) {
@@ -530,16 +544,25 @@ document.addEventListener('DOMContentLoaded', () => {
     renderRealMapElements();
 
     // 지도를 경로 전체가 한눈에 보이도록 맞춤 (fitBounds)
-    if (leafletMap && state.activeBusCoords.length > 0) {
+    const currentModeCoords = (state.transitMode === 'SUBWAY' && state.activeSubwayCoords.length > 0)
+      ? state.activeSubwayCoords
+      : state.activeBusCoords;
+    if (leafletMap && currentModeCoords && currentModeCoords.length > 0) {
       try {
-        leafletMap.fitBounds(state.activeBusCoords, { padding: [60, 60], maxZoom: 16 });
+        leafletMap.fitBounds(currentModeCoords, { padding: [60, 60], maxZoom: 16 });
       } catch (err) { console.warn(err); }
     }
 
     // 소요 시간 & 추천 버스 계산
     const stopsCount = Math.max(2, Math.abs((destSt.roadIndex || 11) - (originSt.roadIndex || 5)));
     const subwayTime = subData.timeMins;
-    const busTime = Math.max(5, Math.round(stopsCount * 2.5 + 4));
+    const busTime = (state.busDriveDurationSecs != null)
+      ? Math.max(5, Math.round((state.busDriveDurationSecs / 60) * 1.35 + 3))
+      : Math.max(5, Math.round(stopsCount * 2.5 + 4));
+
+    const busDistanceStr = (state.busDriveDistanceMeters != null)
+      ? ` · ${(state.busDriveDistanceMeters / 1000).toFixed(1)}km`
+      : '';
 
     // 추천 버스 번호 결정 (권역별 버스 지능 매칭)
     const recommendedBus = determineRecommendedBus(originSt, destSt);
@@ -548,7 +571,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (el.btnSelectBusMode) {
       const timeSpan = el.btnSelectBusMode.querySelector('.mode-time');
       const nameStrong = el.btnSelectBusMode.querySelector('.mode-route-name strong');
-      if (timeSpan) timeSpan.textContent = `약 ${busTime}분`;
+      if (timeSpan) timeSpan.textContent = `약 ${busTime}분${busDistanceStr}`;
       if (nameStrong) nameStrong.textContent = `${recommendedBus}`;
     }
     if (el.btnSelectSubwayMode) {
@@ -564,10 +587,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 하단 미니 요약 갱신
     if (el.miniSummaryText) {
-      el.miniSummaryText.textContent = `${originSt.name} ➔ ${destSt.name} (${state.transitMode === 'BUS' ? busTime : subwayTime}분 소요)`;
+      el.miniSummaryText.textContent = `${originSt.name} ➔ ${destSt.name} (${state.transitMode === 'BUS' ? busTime : subwayTime}분 소요${state.transitMode === 'BUS' ? busDistanceStr : ''})`;
     }
     if (el.busStopsToggleText) {
-      el.busStopsToggleText.textContent = `환승 0회 · 클릭 시 정류소 ${state.activeTransitStops.length}개 노선도 표시`;
+      el.busStopsToggleText.textContent = `환승 0회 · 실제 도로 주행선${busDistanceStr} · 클릭 시 정류소 ${state.activeTransitStops.length}개 노선도 표시`;
     }
     if (el.subwayStopsToggleText) {
       el.subwayStopsToggleText.textContent = subData.isTransfer
@@ -587,7 +610,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) { console.error(e); }
 
     if (notify) {
-      showToast(`🧭 [${originSt.name}] ➔ [${destSt.name}] 경로가 설정되었습니다.`);
+      const distInfo = (state.busDriveDistanceMeters != null) ? ` (${(state.busDriveDistanceMeters / 1000).toFixed(1)}km)` : '';
+      showToast(`🧭 [${originSt.name}] ➔ [${destSt.name}] 실제 도로 경로${distInfo}가 설정되었습니다.`);
     }
   }
 
@@ -778,7 +802,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const subData = buildDynamicSubwayPath(state.originStation, state.destStation);
     const subwayTime = Math.max(3, Math.round(subData.stations.length * 2.2));
     const stopsCount = Math.max(1, Math.abs(((state.destStation && state.destStation.roadIndex) || 11) - ((state.originStation && state.originStation.roadIndex) || 5)));
-    const busTime = Math.max(4, Math.round(stopsCount * 2.5 + 3));
+    const busTime = (state.busDriveDurationSecs != null)
+      ? Math.max(5, Math.round((state.busDriveDurationSecs / 60) * 1.35 + 3))
+      : Math.max(4, Math.round(stopsCount * 2.5 + 3));
+    const busDistStr = (state.busDriveDistanceMeters != null)
+      ? ` · ${(state.busDriveDistanceMeters / 1000).toFixed(1)}km`
+      : '';
 
     const recommendedBus = determineRecommendedBus(state.originStation, state.destStation);
 
@@ -790,8 +819,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (el.btnTabSubwayRoute) el.btnTabSubwayRoute.classList.remove('active');
 
       if (el.miniModeBadge) el.miniModeBadge.textContent = `🚌 ${recommendedBus} 도로 노선`;
-      if (el.miniSummaryText) el.miniSummaryText.textContent = `${originName} ➔ ${destName} 버스 (${busTime}분 소요)`;
-      showToast(`🚌 버스 노선 경로(${recommendedBus})가 지도에 표시됩니다.`);
+      if (el.miniSummaryText) el.miniSummaryText.textContent = `${originName} ➔ ${destName} 버스 (${busTime}분 소요${busDistStr})`;
+      showToast(`🚌 OSRM 실제 도로 버스 경로(${recommendedBus})가 지도에 표시됩니다.`);
     } else {
       // 2. 지하철 모드 활성화 (버스 비활성화)
       if (el.btnSelectSubwayMode) el.btnSelectSubwayMode.classList.add('active');
@@ -808,6 +837,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     renderCurrentTab();
     drawMap();
+
+    // 모드 전환 시 해당 대중교통 궤적에 맞춰 지도를 최적 뷰로 자동 맞춤
+    if (leafletMap) {
+      const coords = (mode === 'SUBWAY' && state.activeSubwayCoords.length > 0)
+        ? state.activeSubwayCoords
+        : state.activeBusCoords;
+      if (coords && coords.length > 0) {
+        try { leafletMap.fitBounds(coords, { padding: [60, 60], maxZoom: 16 }); } catch (e) {}
+      }
+    }
   }
 
   function updateStopsVisibilityUI() {
@@ -2266,6 +2305,60 @@ document.addEventListener('DOMContentLoaded', () => {
       sliced = pts.slice(idxB, idxA + 1).reverse();
     }
     return sliced.map(p => [p.lat, p.lng]);
+  }
+
+  // OSRM 실제 도로 내비게이션 라우팅 캐시 (동일 출발-도착 재요청 0ms 즉시 응답)
+  const osrmRouteCache = new Map();
+
+  /**
+   * OSRM (Open Source Routing Machine) 실제 도로 내비게이션 라우팅 엔진
+   * 부산 도로망의 실제 곡선, 골목, 교차로 턴바이턴 위경도 궤적을 100% 반환
+   */
+  async function fetchOsrmRoute(originSt, destSt) {
+    if (!originSt || !destSt) return null;
+    const cacheKey = `${originSt.lat.toFixed(5)},${originSt.lng.toFixed(5)}_${destSt.lat.toFixed(5)},${destSt.lng.toFixed(5)}`;
+    if (osrmRouteCache.has(cacheKey)) {
+      return osrmRouteCache.get(cacheKey);
+    }
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500); // 3.5초 타임아웃 보장
+
+      const url = `https://router.project-osrm.org/route/v1/driving/${originSt.lng},${originSt.lat};${destSt.lng},${destSt.lat}?overview=full&geometries=geojson`;
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        console.warn('OSRM HTTP error status:', res.status);
+        return null;
+      }
+
+      const data = await res.json();
+      if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+        const route = data.routes[0];
+        // OSRM GeoJSON [lng, lat] -> Leaflet Polyline [lat, lng] 변환
+        const leafCoords = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+
+        // 출발역 및 도착역 핀 위치에 첫/끝 좌표 정밀 밀착(Snap)
+        if (leafCoords.length > 0) {
+          leafCoords[0] = [originSt.lat, originSt.lng];
+          leafCoords[leafCoords.length - 1] = [destSt.lat, destSt.lng];
+        }
+
+        const result = {
+          coords: leafCoords,
+          distance: route.distance, // meters
+          duration: route.duration  // seconds
+        };
+
+        osrmRouteCache.set(cacheKey, result);
+        return result;
+      }
+    } catch (err) {
+      console.warn('OSRM routing failed (will fallback to corridor path):', err.name === 'AbortError' ? 'Timeout' : err.message);
+    }
+    return null;
   }
 
   /**
