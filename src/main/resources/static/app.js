@@ -2050,17 +2050,36 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function sliceLineStations(lineArr, stA, stB) {
-    let idxA = lineArr.findIndex(s => s.id === stA.id || s.name === stA.name);
-    let idxB = lineArr.findIndex(s => s.id === stB.id || s.name === stB.name);
-
-    if (idxA === -1) idxA = 0;
-    if (idxB === -1) idxB = lineArr.length - 1;
-
-    if (idxA <= idxB) {
-      return lineArr.slice(idxA, idxB + 1);
-    } else {
-      return lineArr.slice(idxB, idxA + 1).reverse();
+    function findIdx(st) {
+      let idx = lineArr.findIndex(s => s.id === st.id || s.name === st.name);
+      if (idx !== -1) return idx;
+      let minD = Infinity, best = 0;
+      for (let i = 0; i < lineArr.length; i++) {
+        const d = Math.hypot(lineArr[i].lat - st.lat, lineArr[i].lng - st.lng);
+        if (d < minD) { minD = d; best = i; }
+      }
+      return best;
     }
+
+    const idxA = findIdx(stA);
+    const idxB = findIdx(stB);
+
+    let sliced = [];
+    if (idxA <= idxB) {
+      sliced = lineArr.slice(idxA, idxB + 1);
+    } else {
+      sliced = lineArr.slice(idxB, idxA + 1).reverse();
+    }
+
+    // 마커 좌표와 선로 시작/끝점이 100% 밀착(Snap)되도록 보정하여 선 끊김 원천 차단
+    const res = sliced.map(s => ({ ...s }));
+    if (res.length === 0) {
+      res.push({ ...stA }, { ...stB });
+    } else {
+      res[0] = { ...stA };
+      res[res.length - 1] = { ...stB };
+    }
+    return res;
   }
 
   // ========================================================
@@ -2185,7 +2204,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /**
-   * 출발역과 도착역 사이의 간선 직진 도로 버스 주행 궤적 생성 (우회 및 난잡함 완전 제거)
+   * 출발역과 도착역 사이의 간선 직진 도로 버스 주행 궤적 생성 (우회 및 선 끊김 완전 제거)
    */
   function buildDynamicRoadPath(originSt, destSt) {
     if (!originSt || !destSt) return [];
@@ -2196,35 +2215,51 @@ document.addEventListener('DOMContentLoaded', () => {
     const cOrigin = getStationCorridor(originSt);
     const cDest = getStationCorridor(destSt);
 
+    let rawPts = [];
+
     // 1. 동일한 간선축에 있거나, 한쪽이 서면인 경우: 바로 해당 축의 도로만 슬라이스 (직행)
     if (cOrigin === cDest && cOrigin !== 'HUB') {
-      return sliceCorridorPts(CORRIDORS[cOrigin], originSt, destSt);
-    }
-    if (cOrigin === 'HUB' && cDest !== 'HUB') {
-      return sliceCorridorPts(CORRIDORS[cDest], originSt, destSt);
-    }
-    if (cDest === 'HUB' && cOrigin !== 'HUB') {
-      return sliceCorridorPts(CORRIDORS[cOrigin], originSt, destSt);
-    }
-
-    // 2. 수영로축(대연/광안) ↔ 해운대축(해운대/기장): 수영역에서 직결
-    if ((cOrigin === 'SUYEONG_EAST' && cDest === 'HAEUNDAE_EAST') ||
-        (cOrigin === 'HAEUNDAE_EAST' && cDest === 'SUYEONG_EAST')) {
+      rawPts = sliceCorridorPts(CORRIDORS[cOrigin], originSt, destSt);
+    } else if (cOrigin === 'HUB' && cDest !== 'HUB') {
+      rawPts = sliceCorridorPts(CORRIDORS[cDest], originSt, destSt);
+    } else if (cDest === 'HUB' && cOrigin !== 'HUB') {
+      rawPts = sliceCorridorPts(CORRIDORS[cOrigin], originSt, destSt);
+    } else if ((cOrigin === 'SUYEONG_EAST' && cDest === 'HAEUNDAE_EAST') ||
+               (cOrigin === 'HAEUNDAE_EAST' && cDest === 'SUYEONG_EAST')) {
+      // 2. 수영로축(대연/광안) ↔ 해운대축(해운대/기장): 수영역에서 직결
       if (cOrigin === 'SUYEONG_EAST') {
         const leg1 = sliceCorridorPts(CORRIDORS.SUYEONG_EAST, originSt, suyeongHub);
         const leg2 = sliceCorridorPts(CORRIDORS.HAEUNDAE_EAST, suyeongHub, destSt);
-        return [...leg1, ...leg2.slice(1)];
+        rawPts = [...leg1, [suyeongHub.lat, suyeongHub.lng], ...leg2];
       } else {
         const leg1 = sliceCorridorPts(CORRIDORS.HAEUNDAE_EAST, originSt, suyeongHub);
         const leg2 = sliceCorridorPts(CORRIDORS.SUYEONG_EAST, suyeongHub, destSt);
-        return [...leg1, ...leg2.slice(1)];
+        rawPts = [...leg1, [suyeongHub.lat, suyeongHub.lng], ...leg2];
       }
+    } else {
+      // 3. 기타 서로 다른 간선축 간 이동: 서면 허브에서 깨끗하게 연결
+      const pts1 = sliceCorridorPts(CORRIDORS[cOrigin] || CORRIDORS.SUYEONG_EAST, originSt, seomyeonHub);
+      const pts2 = sliceCorridorPts(CORRIDORS[cDest] || CORRIDORS.JUNGANG_SOUTH, seomyeonHub, destSt);
+      rawPts = [...pts1, [seomyeonHub.lat, seomyeonHub.lng], ...pts2];
     }
 
-    // 3. 기타 서로 다른 간선축 간 이동: 서면 허브에서 깨끗하게 연결
-    const pts1 = sliceCorridorPts(CORRIDORS[cOrigin] || CORRIDORS.SUYEONG_EAST, originSt, seomyeonHub);
-    const pts2 = sliceCorridorPts(CORRIDORS[cDest] || CORRIDORS.JUNGANG_SOUTH, seomyeonHub, destSt);
-    return [...pts1, ...pts2.slice(1)];
+    // 마커 좌표에 100% 밀착(Snap) 보정하여 역 마커와 도로선 사이의 틈(gap) 및 끊김 원천 차단
+    let path = rawPts.slice();
+    if (path.length === 0) {
+      path = [[originSt.lat, originSt.lng], [destSt.lat, destSt.lng]];
+    } else {
+      path.unshift([originSt.lat, originSt.lng]);
+      path.push([destSt.lat, destSt.lng]);
+    }
+
+    // 인접한 중복 좌표 정돈
+    const cleanPath = [];
+    for (let i = 0; i < path.length; i++) {
+      if (i === 0 || Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]) > 0.00005) {
+        cleanPath.push(path[i]);
+      }
+    }
+    return cleanPath;
   }
 
   /**
@@ -2312,7 +2347,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // 구간 2 (환승역 -> 도착역)
     const leg2 = sliceLineStations(getLineList(chosenLine2), hubStation, destSt);
 
+    // 연결부 스냅
+    leg1[leg1.length - 1] = { ...hubStation };
+    leg2[0] = { ...hubStation };
+
     const mergedStations = [...leg1, ...leg2.slice(1)];
+    mergedStations[0] = { ...originSt };
+    mergedStations[mergedStations.length - 1] = { ...destSt };
+
     const totalMins = Math.max(6, Math.round(mergedStations.length * 2.2 + 4)); // 환승 4분 포함
 
     return {
@@ -2480,38 +2522,45 @@ document.addEventListener('DOMContentLoaded', () => {
     const isSubway = state.transitMode === 'SUBWAY';
     const showAllStops = state.showIntermediateStops;
 
-    // Transit Lines Styling (깔끔한 단일 모드 집중 - 비활성 모드 완전 숨김)
+    // Transit Lines Styling (메인 경로는 굵은 실선, 보조 경로는 점선으로 끊김 없이 상시 연결)
     if (busPolyline && subwayPolyline) {
+      const subData = buildDynamicSubwayPath(state.originStation, state.destStation);
+      let subColor = '#10B981'; // 2호선 초록 기본
+      if (!subData.isTransfer) {
+        if (subData.lineFrom === '1') subColor = '#F97316'; // 1호선 주황
+        else if (subData.lineFrom === '3') subColor = '#D97706'; // 3호선 호박
+        else if (subData.lineFrom === 'DONGHAE') subColor = '#0284C7'; // 동해선 블루
+      } else {
+        subColor = '#6366F1'; // 환승 구간 인디고
+      }
+
       if (isSubway) {
-        // 지하철 모드: 버스 라인은 완전히 숨김 (선 겹침 및 어지러움 차단)
-        busPolyline.setStyle({ opacity: 0, weight: 0 });
-
-        // 지하철 노선별 고유 공식 색상 적용
-        const subData = buildDynamicSubwayPath(state.originStation, state.destStation);
-        let subColor = '#10B981'; // 2호선 초록
-        if (!subData.isTransfer) {
-          if (subData.lineFrom === '1') subColor = '#F97316'; // 1호선 주황
-          else if (subData.lineFrom === '3') subColor = '#D97706'; // 3호선 호박
-          else if (subData.lineFrom === 'DONGHAE') subColor = '#0284C7'; // 동해선 블루
-        } else {
-          subColor = '#6366F1'; // 환승 구간 인디고
-        }
-
+        // 지하철 메인 강조
         subwayPolyline.setStyle({
           color: subColor,
           opacity: 0.95,
           weight: 6,
           dashArray: null
         });
+        busPolyline.setStyle({
+          color: '#3B82F6',
+          opacity: 0.35,
+          weight: 3.5,
+          dashArray: '6, 6'
+        });
       } else {
-        // 버스 모드: 지하철 라인은 완전히 숨김
-        subwayPolyline.setStyle({ opacity: 0, weight: 0 });
-
-        // 버스 경로는 선명하고 직관적인 T-Map 네이비 블루
+        // 버스 메인 강조
         busPolyline.setStyle({
           color: '#2563EB',
           opacity: 0.95,
-          weight: 6
+          weight: 6,
+          dashArray: null
+        });
+        subwayPolyline.setStyle({
+          color: subColor,
+          opacity: 0.35,
+          weight: 3.5,
+          dashArray: '6, 6'
         });
       }
     }
