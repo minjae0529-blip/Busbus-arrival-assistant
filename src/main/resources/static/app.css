@@ -3037,6 +3037,78 @@ body, html {
   color: #B45309;
 }
 
+/* 1. 최상단 최우선 추천 직통 카드 */
+.subway-primary-route-card {
+  background: #FFFFFF;
+  border: 2px solid #10B981;
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.12);
+  margin-bottom: 14px;
+}
+
+.subway-primary-route-card.is-transfer {
+  border-color: #6366F1;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.12);
+}
+
+/* 2. 하단 대체 환승 경로 섹션 (우선순위 낮음) */
+.subway-alt-routes-section {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1.5px dashed #E2E8F0;
+}
+
+.subway-alt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.subway-alt-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.subway-alt-tag {
+  font-size: 10px;
+  color: #94A3B8;
+  font-weight: 600;
+}
+
+.subway-alt-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.subway-alt-card {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.subway-alt-card:hover {
+  background: #F1F5F9;
+  border-color: #CBD5E1;
+}
+
+.subway-alt-card.selected {
+  background: #EEF2FF;
+  border-color: #6366F1;
+}
+
 .subway-route-title {
   font-size: 13px;
   font-weight: 800;

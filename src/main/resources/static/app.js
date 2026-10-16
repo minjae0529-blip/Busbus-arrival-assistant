@@ -882,6 +882,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     state.activeTab = tabName;
     renderCurrentTab();
+    drawMap();
   }
 
   function setTransitMode(mode) {
@@ -1187,7 +1188,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 1. SUBWAY VIEW (직통 및 다양한 환승 대안 제시)
+  // 1. SUBWAY VIEW (직통노선 최우선 상단 추천 + 환승 대안 하단 배치)
   function renderSubwayRouteDetails() {
     const originName = state.originStation ? state.originStation.name : '대연역';
     const destName = state.destStation ? state.destStation.name : '서면역';
@@ -1195,56 +1196,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedIdx = Math.min(state.selectedSubwayRouteIndex || 0, allRoutes.length - 1);
     const currentRoute = allRoutes[selectedIdx] || allRoutes[0];
 
-    const subStations = currentRoute.stations;
-    const subwayTime = currentRoute.timeMins;
-    const stopsCount = Math.max(0, subStations.length - 1);
+    // 직통 경로가 존재하는지 확인
+    const directRoute = allRoutes.find(r => !r.isTransfer);
+    const hasDirect = !!directRoute;
 
+    // 직통이 있으면 직통이 primaryRoute, 없으면 0번(최단환승)이 primaryRoute
+    const primaryRoute = hasDirect ? directRoute : allRoutes[0];
+    const altRoutes = allRoutes.filter(r => r.routeId !== primaryRoute.routeId);
+
+    // 상단 빠른 요약 카드 갱신
     if (el.fastestCard) {
       el.fastestCard.style.display = 'block';
-      const routeTypeLabel = currentRoute.isTransfer ? `[환승 ${currentRoute.transfers}회]` : `[직통]`;
-      el.fastestBusTitle.textContent = `★ ${routeTypeLabel} ${originName} ➔ ${destName} ${subwayTime}분 정시도착!`;
-      el.fastestBusDesc.textContent = `${currentRoute.title} · ${stopsCount}개 역 경유 · 배차 4~6분`;
+      const badgeText = currentRoute.isTransfer ? `[환승 ${currentRoute.transfers}회]` : `[⭐ 최우선 직통]`;
+      el.fastestBusTitle.textContent = `★ ${badgeText} ${originName} ➔ ${destName} ${currentRoute.timeMins}분 정시도착!`;
+      el.fastestBusDesc.textContent = `${currentRoute.title} · ${currentRoute.stations.length - 1}개 역 경유 · 배차 4~6분`;
     }
 
-    // A. 상단 다중 경로 선택 탭/알약 카드 생성
-    const routeTabsHtml = `
-      <div class="subway-routes-selector">
-        <div style="font-size:11.5px; font-weight:800; color:#334155; display:flex; justify-content:space-between; align-items:center;">
-          <span>🚇 이동 방법 선택 (직통 & 다양한 환승 대안)</span>
-          <span style="font-size:10.5px; color:#6366F1; font-weight:700;">총 ${allRoutes.length}개 경로 탐색됨</span>
-        </div>
-        <div class="subway-routes-nav-row">
-          ${allRoutes.map((r, idx) => {
-            const isActive = (idx === selectedIdx);
-            const badgeClass = r.badgeType || (r.isTransfer ? 'transfer' : 'direct');
-            return `
-              <div class="subway-route-tab-card ${isActive ? 'active' : ''} ${r.isTransfer ? 'is-transfer' : ''}" data-route-idx="${idx}">
-                <div class="subway-route-badge-row">
-                  <span class="subway-route-badge ${badgeClass}">${r.badgeText}</span>
-                  <span style="font-size:11.5px; font-weight:900; color:${isActive ? '#10B981' : '#64748B'};">약 ${r.timeMins}분</span>
-                </div>
-                <div class="subway-route-title">${r.title}</div>
-                <div class="subway-route-summary-text">
-                  <span>${r.isTransfer ? `환승 ${r.transfers}회` : '환승 없음'}</span>
-                  <span>·</span>
-                  <span>${r.stations.length}개 역</span>
-                </div>
-              </div>
-            `;
-          }).join('')}
-        </div>
-      </div>
-    `;
-
-    // B. 환승 상세 타임라인 스텝바 렌더링
-    let timelineHtml = '';
-    if (currentRoute.sections && currentRoute.sections.length > 0) {
-      timelineHtml = `
+    // A. 타임라인 생성 헬퍼 함수
+    function buildTimelineHtml(route) {
+      if (!route.sections || route.sections.length === 0) return '';
+      return `
         <div class="subway-transfer-timeline">
-          <div style="font-size:11.5px; font-weight:800; color:#1E293B; margin-bottom:10px;">
+          <div style="font-size:11.5px; font-weight:800; color:#1E293B; margin-bottom:8px;">
             🚦 구간별 상세 탑승 & 환승 안내
           </div>
-          ${currentRoute.sections.map((sec, sIdx) => {
+          ${route.sections.map((sec, sIdx) => {
             if (sec.type === 'SUBWAY') {
               let lineBg = '#10B981'; // 2호선
               if (sec.line === '1') lineBg = '#F97316';
@@ -1275,7 +1251,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   <span style="font-size:13px;">🔄</span>
                   <div>
                     <strong>${sec.stationName} 환승 (도보 약 ${sec.walkMins}분)</strong><br>
-                    <span style="font-size:10.5px; color:#78350F;">${sec.fromLine} ➔ ${sec.toLine} 환승통로 이용 · 계단/에스컬레이터 (빠른 환승 3-2번 칸)</span>
+                    <span style="font-size:10.5px; color:#78350F;">${sec.fromLine} ➔ ${sec.toLine} 환승통로 이용 (빠른 환승 3-2번 칸)</span>
                   </div>
                 </div>
               `;
@@ -1297,71 +1273,140 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     }
 
-    // C. 경유역 칩 목록
-    const stopsChipsHtml = subStations.map((st, idx) => {
-      let cls = 'stop-chip';
-      let tag = '';
-      const isTransfer = currentRoute.transferStation && (st.id === currentRoute.transferStation.id || st.name === currentRoute.transferStation.name);
-      if (idx === 0) { cls += ' current'; tag = '(승차)'; }
-      else if (idx === subStations.length - 1) { cls += ' is-dest'; tag = '(하차)'; }
-      else if (isTransfer) { cls += ' is-transfer'; tag = '(환승)'; }
-      const arrow = (idx < subStations.length - 1) ? '<span class="stop-arrow">→</span>' : '';
-      return `<span class="${cls}">${st.name}${tag}</span>${arrow}`;
-    }).join('');
-
-    // D. 메인 카드 렌더링
-    let mainBadgeColor = '#10B981';
-    let mainLineTitle = `부산 ${currentRoute.lineFromName}`;
-    if (currentRoute.isTransfer) {
-      mainBadgeColor = '#6366F1';
-      mainLineTitle = `${currentRoute.lineFromName} ➔ ${currentRoute.lineToName} 환승`;
+    // B. 경유역 칩 목록 생성
+    function buildChipsHtml(stations, transferStation) {
+      return stations.map((st, idx) => {
+        let cls = 'stop-chip';
+        let tag = '';
+        const isTransfer = transferStation && (st.id === transferStation.id || st.name === transferStation.name);
+        if (idx === 0) { cls += ' current'; tag = '(승차)'; }
+        else if (idx === stations.length - 1) { cls += ' is-dest'; tag = '(하차)'; }
+        else if (isTransfer) { cls += ' is-transfer'; tag = '(환승)'; }
+        const arrow = (idx < stations.length - 1) ? '<span class="stop-arrow">→</span>' : '';
+        return `<span class="${cls}">${st.name}${tag}</span>${arrow}`;
+      }).join('');
     }
 
-    el.busListContainer.innerHTML = `
-      ${routeTabsHtml}
+    // C. 1) [최상단 배치] 직통 노선 최우선 추천 카드 (Rank 1)
+    const isPrimaryActive = (currentRoute.routeId === primaryRoute.routeId);
+    const primaryBadgeColor = primaryRoute.isTransfer ? '#6366F1' : '#10B981';
+    const primaryBadgeText = primaryRoute.isTransfer ? '⭐ 최단시간 추천 환승' : '⭐ 최우선 추천 직통';
 
-      <div class="bus-card" style="border-top: 3px solid ${mainBadgeColor};">
-        <div class="card-top-row">
-          <div class="bus-badge-container">
-            <span class="bus-number-chip" style="background:${mainBadgeColor};">${mainLineTitle}</span>
-            <div class="bus-dir-info">
-              <span class="bus-dir-text">${destName} 방면</span>
-              <span class="bus-stops-estimate">${currentRoute.title} (약 ${subwayTime}분 소요 · ${currentRoute.isTransfer ? `환승 ${currentRoute.transfers}회` : '직통'})</span>
+    const primaryCardHtml = `
+      <div class="subway-primary-route-card ${primaryRoute.isTransfer ? 'is-transfer' : ''}" style="${isPrimaryActive ? `border-color:${primaryBadgeColor};` : 'opacity:0.88;'}">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span class="subway-route-badge ${primaryRoute.isTransfer ? 'transfer' : 'direct'}" style="font-size:11px; padding:3px 8px;">${primaryBadgeText}</span>
+            <span style="font-size:11px; color:#15803D; font-weight:800;">환승 ${primaryRoute.transfers}회 · 정시도착 100%</span>
+          </div>
+          <button class="btn-select-subway-route" data-route-id="${primaryRoute.routeId}" style="background:${isPrimaryActive ? primaryBadgeColor : '#E2E8F0'}; color:${isPrimaryActive ? '#FFF' : '#334155'}; border:none; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:800; cursor:pointer;">
+            ${isPrimaryActive ? '✓ 추천 직통 선택됨' : '직통 선택'}
+          </button>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+          <div>
+            <h3 style="font-size:16.5px; font-weight:800; color:#0F172A; margin:0 0 3px;">${primaryRoute.title}</h3>
+            <div style="font-size:12px; color:#64748B;">
+              ${originName} ➔ ${destName} 방면 (${primaryRoute.stations.length - 1}개 역 경유)
             </div>
           </div>
-          <span style="font-size:12px; font-weight:800; color:${mainBadgeColor};">${currentRoute.badgeText}</span>
-        </div>
-
-        <div class="arrival-row">
-          <div class="time-and-stops">
-            <span class="primary-remaining-time urgent">2분 후 도착</span>
-            <span class="stops-remaining-text">전역 출발</span>
-          </div>
-          <div class="meta-tags-group">
-            <span class="meta-pill pill-여유">보통 (혼잡도 낮음)</span>
-            <span class="meta-pill" style="background:#ECFDF5; color:#065F46;">쾌적 냉방</span>
+          <div style="text-align:right;">
+            <span style="font-size:18px; font-weight:900; color:${primaryBadgeColor};">약 ${primaryRoute.timeMins}분</span>
+            <div style="font-size:10.5px; color:#64748B;">배차간격 4~6분</div>
           </div>
         </div>
 
-        ${timelineHtml}
+        ${isPrimaryActive ? buildTimelineHtml(primaryRoute) : ''}
 
-        <div class="stops-preview-box" style="margin-top:12px;">
-          <span class="stops-preview-title">경유 정차역 전체 목록 (총 ${stopsCount + 1}개 역):</span>
+        <div class="stops-preview-box" style="margin-top:10px;">
+          <span class="stops-preview-title">경유 정차역 (${primaryRoute.stations.length}개 역):</span>
           <div class="stops-chips-row">
-            ${stopsChipsHtml}
+            ${buildChipsHtml(primaryRoute.stations, primaryRoute.transferStation)}
           </div>
         </div>
       </div>
     `;
 
-    // E. 경로 선택 탭 클릭 이벤트 바인딩
-    const routeCards = el.busListContainer.querySelectorAll('.subway-route-tab-card');
-    routeCards.forEach(card => {
-      card.addEventListener('click', () => {
-        const rIdx = parseInt(card.dataset.routeIdx, 10);
-        state.selectedSubwayRouteIndex = rIdx;
-        renderSubwayRouteDetails();
-        drawMap();
+    // D. 2) [하단 배치] 환승해서 가는 대체 경로들 (우선순위를 낮게 잡아서 직통노선 밑으로 배치!)
+    let altSectionHtml = '';
+    if (altRoutes.length > 0) {
+      altSectionHtml = `
+        <div class="subway-alt-routes-section">
+          <div class="subway-alt-header">
+            <span class="subway-alt-title">
+              <span>🔄 다른 방법으로 가기 (환승 대안)</span>
+              <span class="subway-alt-tag">우선순위 낮음 · 총 ${altRoutes.length}개 대안</span>
+            </span>
+            <span style="font-size:10.5px; color:#64748B;">클릭하여 지도 및 상세 확인</span>
+          </div>
+
+          <div class="subway-alt-cards-list">
+            ${altRoutes.map(alt => {
+              const isAltSelected = (currentRoute.routeId === alt.routeId);
+              return `
+                <div class="subway-alt-card ${isAltSelected ? 'selected' : ''}" data-route-id="${alt.routeId}">
+                  <div style="flex:1;">
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+                      <span class="subway-route-badge ${alt.badgeType || 'transfer'}" style="font-size:9.5px; padding:1.5px 5px;">${alt.badgeText}</span>
+                      <strong style="font-size:13px; color:#1E293B;">${alt.title}</strong>
+                    </div>
+                    <div style="font-size:11px; color:#64748B;">
+                      ${alt.transferStation ? `${alt.transferStation.name} 환승 (도보 3분)` : '우회 이동'} · ${alt.stations.length - 1}개 역 경유
+                    </div>
+                  </div>
+                  <div style="text-align:right; margin-left:10px;">
+                    <span style="font-size:14px; font-weight:800; color:${isAltSelected ? '#6366F1' : '#475569'};">약 ${alt.timeMins}분</span>
+                    <div>
+                      <button class="btn-select-subway-route" data-route-id="${alt.routeId}" style="background:${isAltSelected ? '#6366F1' : '#F1F5F9'}; color:${isAltSelected ? '#FFF' : '#475569'}; border:1px solid ${isAltSelected ? '#6366F1' : '#CBD5E1'}; border-radius:5px; padding:2px 8px; font-size:10.5px; font-weight:700; margin-top:2px; cursor:pointer;">
+                        ${isAltSelected ? '선택됨' : '이 경로 보기'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                ${isAltSelected ? `
+                  <div style="background:#FFFFFF; border:1px solid #C7D2FE; border-radius:10px; padding:10px; margin-top:-4px; margin-bottom:6px;">
+                    ${buildTimelineHtml(alt)}
+                    <div class="stops-preview-box" style="margin-top:8px;">
+                      <span class="stops-preview-title">경유 정차역:</span>
+                      <div class="stops-chips-row">
+                        ${buildChipsHtml(alt.stations, alt.transferStation)}
+                      </div>
+                    </div>
+                  </div>
+                ` : ''}
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    el.busListContainer.innerHTML = `
+      <div style="margin-bottom:8px; font-size:12px; font-weight:800; color:#334155; display:flex; justify-content:space-between; align-items:center;">
+        <span>🚇 지하철 경로 안내</span>
+        <span style="font-size:11px; color:#10B981; font-weight:700;">★ 직통 노선 최우선 추천</span>
+      </div>
+
+      ${primaryCardHtml}
+      ${altSectionHtml}
+    `;
+
+    // E. 경로 선택 이벤트 바인딩
+    const selectButtons = el.busListContainer.querySelectorAll('.btn-select-subway-route, .subway-alt-card');
+    selectButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const rId = parseInt(btn.dataset.routeId, 10);
+        if (!isNaN(rId)) {
+          const targetIdx = allRoutes.findIndex(r => r.routeId === rId);
+          if (targetIdx !== -1) {
+            state.selectedSubwayRouteIndex = targetIdx;
+            renderSubwayRouteDetails();
+            drawMap();
+          }
+        }
       });
     });
   }
@@ -3572,8 +3617,8 @@ document.addEventListener('DOMContentLoaded', () => {
       L.marker(busCoord, { icon: busIcon }).addTo(liveBusMarkersGroup);
     }
 
-    // 3. Meetup Friend Location
-    if (state.activeAppointment && state.activeAppointment.friendName) {
+    // 3. Meetup Friend Location (오직 실시간 약속 탭을 보고 있을 때만 표출)
+    if (state.activeTab === 'appointments' && state.activeAppointment && state.activeAppointment.friendName) {
       const friendLat = 35.14150;
       const friendLng = 129.06625;
       const friendIcon = L.divIcon({
@@ -3624,8 +3669,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // 5. MIDPOINT RECOMMENDATION BEACON (골드 중간역 마커)
-    if (state.midpointResult && hotplaceMarkerGroup) {
+    // 5. MIDPOINT RECOMMENDATION BEACON (골드 중간역 마커 - 실시간 약속 또는 중간역 확인 시 표출)
+    if (state.activeTab === 'appointments' && state.midpointResult && hotplaceMarkerGroup) {
       const mid = state.midpointResult;
       const midIcon = L.divIcon({
         className: 'custom-station-wrapper',
@@ -3642,8 +3687,8 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    // 6. APPOINTMENT COURSE PLACES POLYLINE & STEP BADGES
-    if (state.activeAppointment && state.activeAppointment.coursePlaces && state.activeAppointment.coursePlaces.length > 0 && hotplaceMarkerGroup) {
+    // 6. APPOINTMENT COURSE PLACES POLYLINE & STEP BADGES (오직 실시간 약속 탭을 누를 때만 1차, 2차 핀 표출!)
+    if (state.activeTab === 'appointments' && state.activeAppointment && state.activeAppointment.coursePlaces && state.activeAppointment.coursePlaces.length > 0 && hotplaceMarkerGroup) {
       const courses = state.activeAppointment.coursePlaces;
       const courseCoords = [];
       courses.forEach((c, idx) => {
