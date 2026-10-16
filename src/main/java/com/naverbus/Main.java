@@ -16,6 +16,7 @@ public class Main {
 
     public static void main(String[] args) {
         printBanner();
+        stopPreviousInstances();
 
         int port = findAvailablePort(DEFAULT_PORT);
 
@@ -76,6 +77,21 @@ public class Main {
             }
         }
         return startPort;
+    }
+
+    private static void stopPreviousInstances() {
+        long myPid = ProcessHandle.current().pid();
+        ProcessHandle.allProcesses()
+                .filter(ph -> ph.pid() != myPid)
+                .filter(ph -> ph.info().commandLine().map(cmd -> cmd.contains("bus-arrival-assistant")).orElse(false))
+                .forEach(ph -> {
+                    System.out.println("[INFO] 기존 실행 중인 서버 프로세스(PID " + ph.pid() + ")를 종료하고 새 버전으로 교체합니다.");
+                    ph.destroyForcibly();
+                });
+        try {
+            Thread.sleep(600);
+        } catch (InterruptedException ignored) {
+        }
     }
 
     private static void printBanner() {

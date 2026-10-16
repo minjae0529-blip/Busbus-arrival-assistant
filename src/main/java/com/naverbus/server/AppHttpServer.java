@@ -51,6 +51,7 @@ public class AppHttpServer {
 
         // API 라우트 등록
         server.createContext("/api/stations/nearby", this::handleNearbyStations);
+        server.createContext("/api/stations/nearest", this::handleNearestStation);
         server.createContext("/api/stations", this::handleStations);
         server.createContext("/api/routes", this::handleRoutes);
         server.createContext("/api/arrivals", this::handleArrivals);
@@ -85,15 +86,44 @@ public class AppHttpServer {
         }
 
         Map<String, String> query = parseQuery(exchange.getRequestURI().getRawQuery());
-        double lat = parseDouble(query.get("lat"), 35.13750); // 기본값: 부산 경성대·부경대역 (수영로)
-        double lng = parseDouble(query.get("lng"), 129.10050);
+        double lat = parseDouble(query.get("lat"), 35.13563); // 기본값: 부산 대연역
+        double lng = parseDouble(query.get("lng"), 129.09516);
         double radius = parseDouble(query.get("radius"), 1500.0);
 
         List<NearbyStation> nearby = geoLocationService.findNearbyStations(dataManager.getAllStations(), lat, lng, radius);
         sendJsonResponse(exchange, 200, nearby);
     }
 
+    private void handleNearestStation(HttpExchange exchange) throws IOException {
+        if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+            sendResponse(exchange, 405, "Method Not Allowed");
+            return;
+        }
+
+        Map<String, String> query = parseQuery(exchange.getRequestURI().getRawQuery());
+        double lat = parseDouble(query.get("lat"), 35.13563);
+        double lng = parseDouble(query.get("lng"), 129.09516);
+
+        List<NearbyStation> nearby = geoLocationService.findNearbyStations(dataManager.getAllStations(), lat, lng, 3000.0);
+        if (!nearby.isEmpty()) {
+            sendJsonResponse(exchange, 200, nearby.get(0));
+        } else {
+            Station fallback = dataManager.getStation("ST-BS-DY");
+            sendJsonResponse(exchange, 200, new NearbyStation(fallback, 50.0, 1));
+        }
+    }
+
     private void handleStations(HttpExchange exchange) throws IOException {
+        String path = exchange.getRequestURI().getPath();
+        // /api/stations/{stationId}/arrivals 지원
+        if ("GET".equalsIgnoreCase(exchange.getRequestMethod()) && path.endsWith("/arrivals")) {
+            String[] parts = path.split("/");
+            String stationId = parts.length >= 4 ? parts[3] : "ST-BS-DY";
+            List<BusArrivalInfo> arrivals = busArrivalService.getArrivalsForStation(stationId);
+            sendJsonResponse(exchange, 200, arrivals);
+            return;
+        }
+
         if ("GET".equalsIgnoreCase(exchange.getRequestMethod())) {
             sendJsonResponse(exchange, 200, dataManager.getAllStations());
         } else if ("POST".equalsIgnoreCase(exchange.getRequestMethod())) {

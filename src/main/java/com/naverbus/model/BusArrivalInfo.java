@@ -19,6 +19,10 @@ public record BusArrivalInfo(
         String formattedRemainingTime,
         boolean isFavorite
 ) {
+    public String getCurrentStationName() {
+        return previousStationName;
+    }
+
     public static String formatSeconds(int totalSeconds) {
         if (totalSeconds <= 30) {
             return "곧 도착";

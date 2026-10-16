@@ -48,45 +48,57 @@ public class DataManager {
     }
 
     private void initDefaultStationsAndRoutes() {
-        // 부산 수영구, 남구, 부산진구(서면) 실제 정류소 데이터 및 실측 GPS 좌표
+        // 부산광역시 버스정보관리시스템(BIMS) 실제 5자리 ARS 번호 및 국토교통부 TAGO 실측 GPS 좌표
         List<Station> defaultStations = List.of(
-                new Station("ST-BS-WPO", "백운포종점 (용호동)", 35.10520, 129.11750, "07120", List.of(), "오륙도 방면"),
-                new Station("ST-BS-ORYK", "오륙도스카이워크.SK뷰", 35.10180, 129.12350, "07125", List.of(), "이기대입구 방면"),
-                new Station("ST-BS-IGD", "이기대입구.용호사거리", 35.12780, 129.11020, "07038", List.of(), "부경대대연캠퍼스 방면"),
-                new Station("ST-BS-PKNU", "부경대대연캠퍼스", 35.13520, 129.10300, "07045", List.of(), "경성대·부경대역 방면"),
-                new Station("ST-BS-KSU", "경성대·부경대역 (수영로)", 35.13750, 129.10050, "07062", List.of("부산2호선"), "대연역 방면"),
-                new Station("ST-BS-NC", "남천역 (수영구 남천동)", 35.14150, 129.10850, "14012", List.of("부산2호선"), "경성대 방면"),
-                new Station("ST-BS-GA", "광안역 (수영구 광안동)", 35.15250, 129.11550, "14020", List.of("부산2호선"), "남천역 방면"),
-                new Station("ST-BS-SY", "수영역 (수영구 수영동)", 35.16100, 129.11650, "14030", List.of("부산2호선", "부산3호선"), "광안역 방면"),
-                new Station("ST-BS-DY", "대연역.부산고려병원", 35.13550, 129.09200, "07070", List.of("부산2호선"), "못골역 방면"),
-                new Station("ST-BS-MG", "못골역.남구청", 35.13600, 129.08450, "07078", List.of("부산2호선"), "지게골역 방면"),
-                new Station("ST-BS-JGG", "지게골역", 35.13720, 129.07600, "07085", List.of("부산2호선"), "문현교차로 방면"),
-                new Station("ST-BS-MH", "문현교차로.문현역", 35.13900, 129.06650, "07092", List.of("부산2호선"), "국제금융센터 방면"),
-                new Station("ST-BS-BIFC", "국제금융센터·부산은행역", 35.14800, 129.06450, "05015", List.of("부산2호선"), "서면역 방면"),
-                new Station("ST-BS-SMN", "서면역.서면지하상가", 35.15780, 129.05920, "05028", List.of("부산1호선", "부산2호선"), "전포사거리 방면")
+                new Station("ST-BS-WPO", "백운포종점 (용호동)", 35.10452, 129.11287, "07078", List.of(), "오륙도스카이워크 방면"),
+                new Station("ST-BS-ORYK", "오륙도스카이워크.SK뷰", 35.10127, 129.12192, "07182", List.of(), "이기대입구 방면"),
+                new Station("ST-BS-IGD", "이기대입구.용호사거리", 35.12327, 129.11257, "07133", List.of(), "부경대대연캠퍼스 방면"),
+                new Station("ST-BS-PKNU", "부경대대연캠퍼스", 35.13288, 129.10128, "07011", List.of(), "경성대·부경대역 방면"),
+                new Station("ST-BS-KSU", "경성대·부경대역 (경성대학교)", 35.13654, 129.09794, "07013", List.of("부산2호선"), "대연역 방면"),
+                new Station("ST-BS-NC", "남천역.대남교차로", 35.14150, 129.10850, "07167", List.of("부산2호선"), "경성대·부경대역 방면"),
+                new Station("ST-BS-GA", "광안역 (수영구 광안동)", 35.15250, 129.11550, "14062", List.of("부산2호선"), "남천역 방면"),
+                new Station("ST-BS-SY", "수영교차로.수영역", 35.16100, 129.11650, "14089", List.of("부산2호선", "부산3호선"), "광안역 방면"),
+                new Station("ST-BS-DY", "대연역 (부산고려병원)", 35.13563, 129.09516, "07016", List.of("부산2호선"), "못골역 방면"),
+                new Station("ST-BS-MG", "남구청.못골역 (못골시장)", 35.13484, 129.08411, "07165", List.of("부산2호선"), "지게골역 방면"),
+                new Station("ST-BS-JGG", "지게골역", 35.13508, 129.07565, "07053", List.of("부산2호선"), "문현교차로 방면"),
+                new Station("ST-BS-MH", "문현교차로.문현역", 35.13959, 129.06748, "07041", List.of("부산2호선"), "국제금융센터 방면"),
+                new Station("ST-BS-BIFC", "국제금융센터·부산은행역", 35.14548, 129.06705, "07067", List.of("부산2호선"), "서면역 방면"),
+                new Station("ST-BS-SMN", "서면역.서면지하상가", 35.15517, 129.05925, "05710", List.of("부산1호선", "부산2호선"), "전포사거리 방면")
         );
 
         for (Station s : defaultStations) {
             stationsById.put(s.id(), s);
         }
 
-        // 부산 24번 및 수영구 연계 주요 시내버스 실제 노선
+        // 부산 BIMS 실제 운행 노선 (24, 83, 83-1, 40, 108, 138, 20번)
         List<BusRoute> defaultRoutes = List.of(
                 new BusRoute(
-                        "R-BS-24", "24", BusRouteType.TRUNK, "서면역 방면", "05:00", "23:00", 5,
+                        "R-BS-24", "24", BusRouteType.TRUNK, "서면역.서면지하상가 방면", "05:00", "23:00", 5,
                         List.of("ST-BS-WPO", "ST-BS-ORYK", "ST-BS-IGD", "ST-BS-PKNU", "ST-BS-KSU", "ST-BS-DY", "ST-BS-MG", "ST-BS-JGG", "ST-BS-MH", "ST-BS-BIFC", "ST-BS-SMN")
                 ),
                 new BusRoute(
-                        "R-BS-83-1", "83-1", BusRouteType.TRUNK, "서면 경유 사직 방면", "04:55", "22:50", 7,
-                        List.of("ST-BS-SY", "ST-BS-GA", "ST-BS-NC", "ST-BS-KSU", "ST-BS-DY", "ST-BS-MH", "ST-BS-SMN")
+                        "R-BS-83", "83", BusRouteType.TRUNK, "서면·부전시장 방면", "04:50", "22:50", 6,
+                        List.of("ST-BS-SY", "ST-BS-GA", "ST-BS-NC", "ST-BS-KSU", "ST-BS-DY", "ST-BS-MG", "ST-BS-JGG", "ST-BS-MH", "ST-BS-BIFC", "ST-BS-SMN")
                 ),
                 new BusRoute(
-                        "R-BS-40", "40", BusRouteType.TRUNK, "부산역·서면 방면", "04:40", "22:45", 8,
-                        List.of("ST-BS-SY", "ST-BS-GA", "ST-BS-NC", "ST-BS-KSU", "ST-BS-DY", "ST-BS-BIFC", "ST-BS-SMN")
+                        "R-BS-83-1", "83-1", BusRouteType.TRUNK, "서면 경유 사직동 방면", "04:55", "22:50", 7,
+                        List.of("ST-BS-SY", "ST-BS-GA", "ST-BS-NC", "ST-BS-KSU", "ST-BS-DY", "ST-BS-MG", "ST-BS-JGG", "ST-BS-MH", "ST-BS-BIFC", "ST-BS-SMN")
                 ),
                 new BusRoute(
-                        "R-BS-20", "20", BusRouteType.BRANCH, "수영구청·광안리 방면", "05:00", "23:10", 10,
-                        List.of("ST-BS-IGD", "ST-BS-PKNU", "ST-BS-KSU", "ST-BS-NC", "ST-BS-GA", "ST-BS-SY")
+                        "R-BS-108", "108", BusRouteType.TRUNK, "서면·엄궁 방면", "05:00", "22:40", 8,
+                        List.of("ST-BS-SY", "ST-BS-GA", "ST-BS-NC", "ST-BS-KSU", "ST-BS-DY", "ST-BS-MG", "ST-BS-JGG", "ST-BS-MH", "ST-BS-BIFC", "ST-BS-SMN")
+                ),
+                new BusRoute(
+                        "R-BS-138", "138", BusRouteType.TRUNK, "서면·장림 방면", "04:55", "22:30", 9,
+                        List.of("ST-BS-IGD", "ST-BS-PKNU", "ST-BS-KSU", "ST-BS-DY", "ST-BS-MG", "ST-BS-JGG", "ST-BS-MH", "ST-BS-BIFC", "ST-BS-SMN")
+                ),
+                new BusRoute(
+                        "R-BS-40", "40", BusRouteType.TRUNK, "부산역·구덕운동장 방면", "04:40", "22:45", 8,
+                        List.of("ST-BS-SY", "ST-BS-GA", "ST-BS-NC", "ST-BS-KSU", "ST-BS-DY", "ST-BS-MG", "ST-BS-JGG", "ST-BS-MH")
+                ),
+                new BusRoute(
+                        "R-BS-20", "20", BusRouteType.BRANCH, "서면·백운포 방면", "05:00", "23:10", 10,
+                        List.of("ST-BS-WPO", "ST-BS-IGD", "ST-BS-PKNU", "ST-BS-KSU", "ST-BS-NC", "ST-BS-GA", "ST-BS-SY", "ST-BS-SMN")
                 )
         );
 

@@ -659,9 +659,10 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) { console.error(e); }
   }
 
-  async function fetchRecommendations() {
+  async function fetchRecommendations(destId) {
     try {
-      const res = await fetch('/api/recommendations?destinationId=ST-BS-SMN&earlyMinutes=11');
+      const targetDest = destId || (state.destination && state.destination.stationId) || 'ST-BS-SMN';
+      const res = await fetch(`/api/recommendations?destinationId=${encodeURIComponent(targetDest)}&earlyMinutes=15`);
       if (res.ok) state.recommendations = await res.json();
     } catch (e) { console.error(e); }
   }
@@ -712,7 +713,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateClock() {
     const now = new Date();
     if (el.liveClock) {
-      el.liveClock.textContent = `${now.toLocaleTimeString('ko-KR', { hour12: false })} 동기화`;
+      el.liveClock.textContent = `🟢 BIMS 실시간 (${now.toLocaleTimeString('ko-KR', { hour12: false })})`;
     }
   }
 
@@ -810,8 +811,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const fastest = matches[0];
     if (el.fastestCard) {
       el.fastestCard.style.display = 'block';
-      el.fastestBusTitle.textContent = `★ 지금 ${fastest.busNumber}번 버스를 타시면 가장 빠릅니다!`;
-      el.fastestBusDesc.textContent = `${fastest.boardingStation.name} 탑승 시 6개 정류장 후 [${fastest.destinationStation.name}] 도착 (총 약 ${fastest.totalEstimatedMinutes}분 소요)`;
+      el.fastestBusTitle.textContent = `★ [실시간 BIMS] 지금 ${fastest.busNumber}번 버스를 타시면 가장 빠릅니다!`;
+      el.fastestBusDesc.textContent = `${fastest.boardingStation.name}(ARS ${fastest.boardingStation.arsId}) 탑승 시 ${fastest.stopsToDestination}개 정류장 후 [${fastest.destinationStation.name}] 도착 (총 약 ${fastest.totalEstimatedMinutes}분 소요)`;
     }
 
     el.busListContainer.innerHTML = matches.map(m => createMatchCardHtml(m)).join('');
@@ -821,13 +822,25 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderAllArrivals() {
     if (el.fastestCard) el.fastestCard.style.display = 'none';
     const arrivals = state.cachedArrivals || [];
+    const stObj = (state.currentStation && state.currentStation.station) ? state.currentStation.station : null;
+    const stTitle = stObj ? `${stObj.name} (ARS ${stObj.arsId})` : '대연역 (ARS 07016)';
 
     if (arrivals.length === 0) {
       el.busListContainer.innerHTML = `<div class="empty-state">도착 예정인 버스 정보가 없습니다.</div>`;
       return;
     }
 
-    el.busListContainer.innerHTML = arrivals.map(a => createArrivalCardHtml(a)).join('');
+    const headerBanner = `
+      <div style="background:#ECFDF5; border:1px solid #A7F3D0; border-radius:12px; padding:10px 14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-size:12.5px; font-weight:800; color:#065F46;">🟢 부산광역시 BIMS 실시간 버스 도착 연동 중</div>
+          <div style="font-size:11px; color:#047857; margin-top:2px;">조회 정류소: <strong>${stTitle}</strong> · 실시간 운행 노선 ${arrivals.length}개</div>
+        </div>
+        <span style="background:#10B981; color:#fff; font-size:10.5px; font-weight:800; padding:3px 8px; border-radius:999px;">LIVE</span>
+      </div>
+    `;
+
+    el.busListContainer.innerHTML = headerBanner + arrivals.map(a => createArrivalCardHtml(a)).join('');
     bindCardEvents();
   }
 
@@ -1020,13 +1033,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const allList = state.recommendations || [];
 
     if (allList.length === 0) {
-      el.busListContainer.innerHTML = `<div class="empty-state">추천 장소를 불러오는 중입니다...</div>`;
+      el.busListContainer.innerHTML = `<div class="empty-state">실존 매장 및 상권 API 데이터를 불러오는 중입니다...</div>`;
       return;
     }
 
     const currentFilter = state.selectedPlaceFilter;
     const filteredList = allList.filter(item => {
       if (currentFilter === 'ALL') return true;
+      if (currentFilter === 'OSM') return (item.badge && item.badge.includes('OSM')) || (item.category && item.category.includes('OSM'));
       if (currentFilter === 'FRIEND') return item.theme === 'FRIEND' || item.theme === 'ALL';
       if (currentFilter === 'SOLO') return item.theme === 'SOLO' || item.theme === 'ALL';
       if (currentFilter === 'PLAY') return item.category.includes('놀거리') || item.category.includes('소품');
@@ -1036,16 +1050,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const currentCourseNames = (state.activeAppointment?.coursePlaces || []).map(c => c.name);
+    const osmCount = allList.filter(item => (item.badge && item.badge.includes('OSM')) || (item.category && item.category.includes('OSM'))).length;
 
     el.busListContainer.innerHTML = `
       <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:12px; padding:12px 14px; margin-bottom:10px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <div>
             <div style="font-weight:800; font-size:13.5px; color:#1E40AF; margin-bottom:2px;">
-              ✨ 약속 전/후 핫플레이스 & 놀거리 (${filteredList.length}곳)
+              🟢 실시간 OpenStreetMap 상권 API & 실존 핫플 (${filteredList.length}곳)
             </div>
             <div style="font-size:11.5px; color:#1E3A8A;">
-              카드를 클릭하면 <strong>도보 길안내선</strong>이 표시되며, <strong>[+ 코스 담기]</strong>로 약속 코스에 추가할 수 있습니다.
+              목적지 반경 650m 내 <strong>실제 등록 매장(OSM Overpass API ${osmCount}곳 포함)</strong>을 실시간 수집했습니다.
             </div>
           </div>
         </div>
@@ -1058,7 +1073,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       <!-- THEME FILTER CHIPS ROW -->
       <div class="place-filter-chips-row">
-        <button class="btn-filter-tag ${currentFilter === 'ALL' ? 'active' : ''}" data-filter="ALL">🌟 전체보기 (${allList.length})</button>
+        <button class="btn-filter-tag ${currentFilter === 'ALL' ? 'active' : ''}" data-filter="ALL">🌟 전체 (${allList.length})</button>
+        <button class="btn-filter-tag ${currentFilter === 'OSM' ? 'active' : ''}" data-filter="OSM">🟢 실시간 OSM 매장 (${osmCount})</button>
         <button class="btn-filter-tag ${currentFilter === 'FRIEND' ? 'active' : ''}" data-filter="FRIEND">👥 친구와 함께</button>
         <button class="btn-filter-tag ${currentFilter === 'SOLO' ? 'active' : ''}" data-filter="SOLO">🧘 혼자 여유</button>
         <button class="btn-filter-tag ${currentFilter === 'PLAY' ? 'active' : ''}" data-filter="PLAY">🎲 놀거리/체험</button>
@@ -1560,6 +1576,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (el.inputNavDest) el.inputNavDest.value = stName;
         el.destModal.classList.remove('is-open');
         await fetchDestination();
+        await fetchRecommendations(stId);
         await refreshAllData();
         showToast(`목적지가 [${stName}]으로 설정되었습니다.`);
       });
