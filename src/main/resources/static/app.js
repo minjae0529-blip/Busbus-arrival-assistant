@@ -2063,97 +2063,168 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 실제 도로망 곡선 궤적 테이블 (부산 전역 주요 간선축 망라)
-  const MASTER_ROAD_PATH = [
-    // 1. 다대포 - 하단 (낙동남로)
-    [35.04830, 128.96520], [35.07500, 128.96600], [35.10610, 128.96680], // 하단역
-    // 2. 하단 - 자갈치 - 남포 - 부산역 (구덕로 / 중앙대로)
-    [35.10500, 128.99000], [35.10000, 129.01000], [35.09750, 129.02670], // 자갈치역
-    [35.09790, 129.03480], // 남포역
-    [35.11000, 129.03900], [35.11520, 129.04220], // 부산역
-    [35.12050, 129.04400], [35.13500, 129.05200], [35.14810, 129.05970], // 범내골역
-    [35.15780, 129.05920], // 서면역 (중심 허브)
+  // ========================================================
+  // CLEAN TRANSIT CORRIDOR ROAD GRAPH ROUTER (NO ROUNDABOUTS)
+  // ========================================================
+  const CORRIDORS = {
+    // 1. 중앙대로 남부축 (다대포 - 하단 - 자갈치 - 남포 - 부산역 - 서면)
+    JUNGANG_SOUTH: [
+      { id: 'ST-BS-DDP', lat: 35.0483, lng: 128.9652, name: '다대포해수욕장' },
+      { id: 'ROAD-DDP-HD', lat: 35.0750, lng: 128.9660 },
+      { id: 'ST-BS-HAD', lat: 35.1061, lng: 128.9668, name: '하단역' },
+      { id: 'ROAD-HD-JGC1', lat: 35.1050, lng: 128.9900 },
+      { id: 'ROAD-HD-JGC2', lat: 35.1000, lng: 129.0100 },
+      { id: 'ST-BS-JGC', lat: 35.0975, lng: 129.0267, name: '자갈치역' },
+      { id: 'ST-BS-NPST', lat: 35.0979, lng: 129.0348, name: '남포역' },
+      { id: 'ROAD-NP-BS', lat: 35.1100, lng: 129.0390 },
+      { id: 'ST-BS-BSST', lat: 35.1152, lng: 129.0422, name: '부산역' },
+      { id: 'ST-BS-CR', lat: 35.1205, lng: 129.0440, name: '초량역' },
+      { id: 'ROAD-CR-BNG', lat: 35.1350, lng: 129.0520 },
+      { id: 'ST-BS-BNG', lat: 35.1481, lng: 129.0597, name: '범내골역' },
+      { id: 'ST-BS-SMN', lat: 35.1578, lng: 129.0592, name: '서면역' }
+    ],
 
-    // 3. 서면 - 양정 - 연산 - 교대 - 동래 - 온천장 - 부산대 (중앙대로 북축)
-    [35.17300, 129.07130], // 양정역
-    [35.18610, 129.08150], // 연산역
-    [35.19630, 129.08000], // 교대역
-    [35.20570, 129.07830], // 동래역
-    [35.22050, 129.08630], // 온천장역
-    [35.22970, 129.08940], // 부산대역
-    [35.28460, 129.09490], // 노포역
+    // 2. 중앙대로 북부축 (서면 - 양정 - 연산 - 교대 - 동래 - 온천장 - 부산대 - 노포)
+    JUNGANG_NORTH: [
+      { id: 'ST-BS-SMN', lat: 35.1578, lng: 129.0592, name: '서면역' },
+      { id: 'ST-BS-YJ', lat: 35.1730, lng: 129.0713, name: '양정역' },
+      { id: 'ST-BS-YS', lat: 35.1861, lng: 129.0815, name: '연산역' },
+      { id: 'ST-BS-CD', lat: 35.1963, lng: 129.0800, name: '교대역' },
+      { id: 'ST-BS-DNR', lat: 35.2057, lng: 129.0783, name: '동래역' },
+      { id: 'ST-BS-ONC', lat: 35.2205, lng: 129.0863, name: '온천장역' },
+      { id: 'ST-BS-PNU', lat: 35.2297, lng: 129.0894, name: '부산대역' },
+      { id: 'ROAD-PNU-NP', lat: 35.2550, lng: 129.0920 },
+      { id: 'ST-BS-NP', lat: 35.2846, lng: 129.0949, name: '노포역' }
+    ],
 
-    // 4. 서면 - 전포 - BIFC - 못골 - 대연 - 경성대 - 남천 - 광안 - 수영 (수영로 동축)
-    [35.15420, 129.06320], // 전포역
-    [35.14750, 129.06470], // BIFC
-    [35.13885, 129.06640], // 문현
-    [35.13605, 129.08470], // 못골역
-    [35.13545, 129.09210], // 대연역
-    [35.13654, 129.09794], // 경성대
-    [35.14150, 129.10850], // 남천역
-    [35.14650, 129.11280], // 금련산역
-    [35.15250, 129.11550], // 광안역
-    [35.16100, 129.11650], // 수영역
+    // 3. 수영로 동부축 (서면 - 전포 - BIFC - 문현 - 못골 - 대연 - 경성대 - 남천 - 광안 - 수영)
+    SUYEONG_EAST: [
+      { id: 'ST-BS-SMN', lat: 35.1578, lng: 129.0592, name: '서면역' },
+      { id: 'ROAD-SMN-JP', lat: 35.1558, lng: 129.0620 },
+      { id: 'ST-BS-JP', lat: 35.1542, lng: 129.0632, name: '전포역' },
+      { id: 'ROAD-JP-BIFC', lat: 35.1500, lng: 129.0640 },
+      { id: 'ST-BS-BIFC', lat: 35.1475, lng: 129.0647, name: '국제금융센터역' },
+      { id: 'ROAD-BIFC-MH', lat: 35.1415, lng: 129.0662 },
+      { id: 'ST-BS-MH', lat: 35.1388, lng: 129.0664, name: '문현역' },
+      { id: 'ROAD-MH-MG', lat: 35.1370, lng: 129.0750 },
+      { id: 'ST-BS-MG', lat: 35.1360, lng: 129.0847, name: '못골역' },
+      { id: 'ST-BS-DY', lat: 35.1354, lng: 129.0921, name: '대연역' },
+      { id: 'ST-BS-KSU', lat: 35.1365, lng: 129.0979, name: '경성대·부경대역' },
+      { id: 'ROAD-KSU-NC', lat: 35.1390, lng: 129.1040 },
+      { id: 'ST-BS-NC', lat: 35.1415, lng: 129.1085, name: '남천역' },
+      { id: 'ST-BS-GRS', lat: 35.1465, lng: 129.1128, name: '금련산역' },
+      { id: 'ST-BS-GA', lat: 35.1525, lng: 129.1155, name: '광안역' },
+      { id: 'ST-BS-SY', lat: 35.1610, lng: 129.1165, name: '수영역' }
+    ],
 
-    // 5. 수영 - 센텀시티 - 벡스코 - 동백 - 해운대 - 장산 (해운대로)
-    [35.16890, 129.13170], // 센텀시티역
-    [35.16890, 129.13890], // 벡스코역
-    [35.16010, 129.14380], // 동백역
-    [35.16310, 129.15850], // 해운대역
-    [35.16990, 129.17690], // 장산역
+    // 4. 해운대로 & 기장대로축 (수영 - 센텀시티 - 벡스코 - 해운대 - 장산 - 오시리아 - 기장)
+    HAEUNDAE_EAST: [
+      { id: 'ST-BS-SY', lat: 35.1610, lng: 129.1165, name: '수영역' },
+      { id: 'ROAD-SY-CT', lat: 35.1645, lng: 129.1240 },
+      { id: 'ST-BS-CT', lat: 35.1689, lng: 129.1317, name: '센텀시티역' },
+      { id: 'ST-BS-BX', lat: 35.1689, lng: 129.1389, name: '벡스코역' },
+      { id: 'ST-BS-DB', lat: 35.1601, lng: 129.1438, name: '동백역' },
+      { id: 'ROAD-DB-HUD', lat: 35.1615, lng: 129.1510 },
+      { id: 'ST-BS-HUD', lat: 35.1631, lng: 129.1585, name: '해운대역' },
+      { id: 'ST-BS-JS', lat: 35.1699, lng: 129.1769, name: '장산역' },
+      { id: 'ROAD-JS-SJ', lat: 35.1800, lng: 129.1900 },
+      { id: 'ST-BS-OSR', lat: 35.1932, lng: 129.2120, name: '오시리아역' },
+      { id: 'ST-BS-GIJ', lat: 35.2443, lng: 129.2173, name: '기장역' },
+      { id: 'ST-BS-ILG', lat: 35.2657, lng: 129.2332, name: '일광역' }
+    ],
 
-    // 6. 해운대 - 송정 - 오시리아 - 기장 (기장대로)
-    [35.18520, 129.19960], // 송정
-    [35.19320, 129.21200], // 오시리아역
-    [35.24430, 129.21730], // 기장역
-    [35.26570, 129.23320], // 일광역
-
-    // 7. 서면 - 부암 - 주례 - 사상 - 덕천 - 화명 (가야대로 / 백양대로 / 낙동대로)
-    [35.15980, 129.05050], // 부암역
-    [35.15060, 129.01350], // 주례역
-    [35.16230, 128.98470], // 사상역
-    [35.20650, 128.99580], // 구포역
-    [35.21040, 128.99900], // 덕천역
-    [35.23600, 129.01370]  // 화명역
-  ];
+    // 5. 가야대로 & 백양대로축 (서면 - 부암 - 주례 - 사상 - 덕천 - 화명)
+    SASANG_WEST: [
+      { id: 'ST-BS-SMN', lat: 35.1578, lng: 129.0592, name: '서면역' },
+      { id: 'ST-BS-BA', lat: 35.1598, lng: 129.0505, name: '부암역' },
+      { id: 'ROAD-BA-JR', lat: 35.1540, lng: 129.0320 },
+      { id: 'ST-BS-JR', lat: 35.1506, lng: 129.0135, name: '주례역' },
+      { id: 'ROAD-JR-SS', lat: 35.1560, lng: 128.9990 },
+      { id: 'ST-BS-SS', lat: 35.1623, lng: 128.9847, name: '사상역' },
+      { id: 'ROAD-SS-GP', lat: 35.1850, lng: 128.9900 },
+      { id: 'ST-BS-GP', lat: 35.2065, lng: 128.9958, name: '구포역' },
+      { id: 'ST-BS-DC', lat: 35.2104, lng: 128.9990, name: '덕천역' },
+      { id: 'ST-BS-HM', lat: 35.2360, lng: 129.0137, name: '화명역' }
+    ]
+  };
 
   /**
-   * 출발역과 도착역 사이의 도로 버스 주행 궤적 생성
+   * 해당 역이 어느 간선 도로축(Corridor)에 속하는지 판별
    */
-  function buildDynamicRoadPath(originSt, destSt) {
-    if (!originSt || !destSt) return MASTER_ROAD_PATH;
+  function getStationCorridor(st) {
+    if (!st) return 'SUYEONG_EAST';
+    const reg = st.region;
+    if (reg === 'SEOMYEON') return 'HUB'; // 서면은 모든 축의 중심 교차점
+    if (reg === 'HADAN' || reg === 'BUSAN_STATION') return 'JUNGANG_SOUTH';
+    if (reg === 'DONGNAE' || reg === 'PNU') return 'JUNGANG_NORTH';
+    if (reg === 'DAEYEON' || reg === 'GWANGAN') return 'SUYEONG_EAST';
+    if (reg === 'HAEUNDAE' || reg === 'GIJANG') return 'HAEUNDAE_EAST';
+    if (reg === 'SASANG' || reg === 'DEOKCHEON') return 'SASANG_WEST';
+    return 'SUYEONG_EAST';
+  }
 
-    function findClosestRoadIdx(st) {
-      let minD = Infinity;
-      let minIdx = 0;
-      for (let i = 0; i < MASTER_ROAD_PATH.length; i++) {
-        const pt = MASTER_ROAD_PATH[i];
-        const d = Math.hypot(pt[0] - st.lat, pt[1] - st.lng);
-        if (d < minD) {
-          minD = d;
-          minIdx = i;
-        }
+  function sliceCorridorPts(pts, stA, stB) {
+    function findNearIdx(st) {
+      let minD = Infinity, minIdx = 0;
+      for (let i = 0; i < pts.length; i++) {
+        const d = Math.hypot(pts[i].lat - st.lat, pts[i].lng - st.lng);
+        if (d < minD) { minD = d; minIdx = i; }
       }
       return minIdx;
     }
+    const idxA = findNearIdx(stA);
+    const idxB = findNearIdx(stB);
 
-    const startIdx = findClosestRoadIdx(originSt);
-    const endIdx = findClosestRoadIdx(destSt);
-
-    let path = [];
-    if (startIdx <= endIdx) {
-      path = MASTER_ROAD_PATH.slice(startIdx, endIdx + 1);
+    let sliced = [];
+    if (idxA <= idxB) {
+      sliced = pts.slice(idxA, idxB + 1);
     } else {
-      path = MASTER_ROAD_PATH.slice(endIdx, startIdx + 1).reverse();
+      sliced = pts.slice(idxB, idxA + 1).reverse();
+    }
+    return sliced.map(p => [p.lat, p.lng]);
+  }
+
+  /**
+   * 출발역과 도착역 사이의 간선 직진 도로 버스 주행 궤적 생성 (우회 및 난잡함 완전 제거)
+   */
+  function buildDynamicRoadPath(originSt, destSt) {
+    if (!originSt || !destSt) return [];
+
+    const seomyeonHub = { id: 'ST-BS-SMN', lat: 35.1578, lng: 129.0592, name: '서면역' };
+    const suyeongHub = { id: 'ST-BS-SY', lat: 35.1610, lng: 129.1165, name: '수영역' };
+
+    const cOrigin = getStationCorridor(originSt);
+    const cDest = getStationCorridor(destSt);
+
+    // 1. 동일한 간선축에 있거나, 한쪽이 서면인 경우: 바로 해당 축의 도로만 슬라이스 (직행)
+    if (cOrigin === cDest && cOrigin !== 'HUB') {
+      return sliceCorridorPts(CORRIDORS[cOrigin], originSt, destSt);
+    }
+    if (cOrigin === 'HUB' && cDest !== 'HUB') {
+      return sliceCorridorPts(CORRIDORS[cDest], originSt, destSt);
+    }
+    if (cDest === 'HUB' && cOrigin !== 'HUB') {
+      return sliceCorridorPts(CORRIDORS[cOrigin], originSt, destSt);
     }
 
-    if (path.length <= 1) {
-      path = [[originSt.lat, originSt.lng], [destSt.lat, destSt.lng]];
-    } else {
-      path[0] = [originSt.lat, originSt.lng];
-      path[path.length - 1] = [destSt.lat, destSt.lng];
+    // 2. 수영로축(대연/광안) ↔ 해운대축(해운대/기장): 수영역에서 직결
+    if ((cOrigin === 'SUYEONG_EAST' && cDest === 'HAEUNDAE_EAST') ||
+        (cOrigin === 'HAEUNDAE_EAST' && cDest === 'SUYEONG_EAST')) {
+      if (cOrigin === 'SUYEONG_EAST') {
+        const leg1 = sliceCorridorPts(CORRIDORS.SUYEONG_EAST, originSt, suyeongHub);
+        const leg2 = sliceCorridorPts(CORRIDORS.HAEUNDAE_EAST, suyeongHub, destSt);
+        return [...leg1, ...leg2.slice(1)];
+      } else {
+        const leg1 = sliceCorridorPts(CORRIDORS.HAEUNDAE_EAST, originSt, suyeongHub);
+        const leg2 = sliceCorridorPts(CORRIDORS.SUYEONG_EAST, suyeongHub, destSt);
+        return [...leg1, ...leg2.slice(1)];
+      }
     }
-    return path;
+
+    // 3. 기타 서로 다른 간선축 간 이동: 서면 허브에서 깨끗하게 연결
+    const pts1 = sliceCorridorPts(CORRIDORS[cOrigin] || CORRIDORS.SUYEONG_EAST, originSt, seomyeonHub);
+    const pts2 = sliceCorridorPts(CORRIDORS[cDest] || CORRIDORS.JUNGANG_SOUTH, seomyeonHub, destSt);
+    return [...pts1, ...pts2.slice(1)];
   }
 
   /**
@@ -2317,7 +2388,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const initialBusCoords = (state.activeBusCoords && state.activeBusCoords.length > 0)
       ? state.activeBusCoords
-      : MASTER_ROAD_PATH.slice(12, 36);
+      : CORRIDORS.SUYEONG_EAST.map(p => [p.lat, p.lng]);
 
     const initialSubwayCoords = (state.activeSubwayCoords && state.activeSubwayCoords.length > 0)
       ? state.activeSubwayCoords
@@ -2409,14 +2480,39 @@ document.addEventListener('DOMContentLoaded', () => {
     const isSubway = state.transitMode === 'SUBWAY';
     const showAllStops = state.showIntermediateStops;
 
-    // Transit Lines Styling
+    // Transit Lines Styling (깔끔한 단일 모드 집중 - 비활성 모드 완전 숨김)
     if (busPolyline && subwayPolyline) {
       if (isSubway) {
-        busPolyline.setStyle({ opacity: 0.2, weight: 3 });
-        subwayPolyline.setStyle({ opacity: 0.95, weight: 6, dashArray: null });
+        // 지하철 모드: 버스 라인은 완전히 숨김 (선 겹침 및 어지러움 차단)
+        busPolyline.setStyle({ opacity: 0, weight: 0 });
+
+        // 지하철 노선별 고유 공식 색상 적용
+        const subData = buildDynamicSubwayPath(state.originStation, state.destStation);
+        let subColor = '#10B981'; // 2호선 초록
+        if (!subData.isTransfer) {
+          if (subData.lineFrom === '1') subColor = '#F97316'; // 1호선 주황
+          else if (subData.lineFrom === '3') subColor = '#D97706'; // 3호선 호박
+          else if (subData.lineFrom === 'DONGHAE') subColor = '#0284C7'; // 동해선 블루
+        } else {
+          subColor = '#6366F1'; // 환승 구간 인디고
+        }
+
+        subwayPolyline.setStyle({
+          color: subColor,
+          opacity: 0.95,
+          weight: 6,
+          dashArray: null
+        });
       } else {
-        busPolyline.setStyle({ opacity: 0.92, weight: 5 });
-        subwayPolyline.setStyle({ opacity: 0.22, weight: 3, dashArray: '6, 6' });
+        // 버스 모드: 지하철 라인은 완전히 숨김
+        subwayPolyline.setStyle({ opacity: 0, weight: 0 });
+
+        // 버스 경로는 선명하고 직관적인 T-Map 네이비 블루
+        busPolyline.setStyle({
+          color: '#2563EB',
+          opacity: 0.95,
+          weight: 6
+        });
       }
     }
 
@@ -2436,23 +2532,26 @@ document.addEventListener('DOMContentLoaded', () => {
           else if (isEnd) pinHtml = `<div class="leaflet-dest-pin" title="도착역"></div>`;
           else if (isTransferStation) pinHtml = `<div class="leaflet-station-pin" style="background:#F59E0B; border:2px solid #FFF;" title="환승역"></div>`;
 
+          const isKeyPin = isStart || isEnd || isTransferStation;
           const customIcon = L.divIcon({
             className: 'custom-station-wrapper',
             html: pinHtml,
-            iconSize: isTransferStation ? [20, 20] : [16, 16],
-            iconAnchor: isTransferStation ? [10, 10] : [8, 8]
+            iconSize: isKeyPin ? [18, 18] : [10, 10],
+            iconAnchor: isKeyPin ? [9, 9] : [5, 5]
           });
 
           const marker = L.marker([st.lat, st.lng], { icon: customIcon }).addTo(stationMarkersGroup);
-          const tooltipText = isTransferStation
-            ? `<b>🔄 ${st.name} (환승)</b>`
-            : `<b>${st.name}</b>`;
-          marker.bindTooltip(tooltipText, {
-            permanent: true,
-            direction: 'bottom',
-            offset: [0, 8],
-            className: isTransferStation ? 'subway-tooltip transfer-tooltip' : 'subway-tooltip'
-          });
+          if (isKeyPin || showAllStops) {
+            const tooltipText = isTransferStation
+              ? `<b>🔄 ${st.name} (환승)</b>`
+              : `<b>${st.name}</b>`;
+            marker.bindTooltip(tooltipText, {
+              permanent: isKeyPin,
+              direction: 'bottom',
+              offset: [0, 8],
+              className: isTransferStation ? 'subway-tooltip transfer-tooltip' : 'subway-tooltip'
+            });
+          }
         }
       });
 
@@ -2491,13 +2590,13 @@ document.addEventListener('DOMContentLoaded', () => {
           const customIcon = L.divIcon({
             className: 'custom-station-wrapper',
             html: pinHtml,
-            iconSize: [18, 18],
-            iconAnchor: [9, 9]
+            iconSize: isStartOrEnd ? [18, 18] : [10, 10],
+            iconAnchor: isStartOrEnd ? [9, 9] : [5, 5]
           });
 
           const marker = L.marker([st.lat, st.lng], { icon: customIcon }).addTo(stationMarkersGroup);
           marker.bindTooltip(`<b>${st.name}</b>`, {
-            permanent: true,
+            permanent: isStartOrEnd,
             direction: 'bottom',
             offset: [0, 8],
             className: 'station-tooltip'
@@ -2512,7 +2611,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       const busNum = (state.cachedMatches && state.cachedMatches.length > 0) ? state.cachedMatches[0].busNumber : '24';
 
-      const activeRoad = (state.activeBusCoords && state.activeBusCoords.length > 0) ? state.activeBusCoords : MASTER_ROAD_PATH;
+      const fallbackRoad = CORRIDORS.SUYEONG_EAST.map(p => [p.lat, p.lng]);
+      const activeRoad = (state.activeBusCoords && state.activeBusCoords.length > 0) ? state.activeBusCoords : fallbackRoad;
       const busCoord = interpolateRoadPosition(activeRoad, bus1Sec);
       const busIcon = L.divIcon({
         className: 'bus-icon-wrapper',
