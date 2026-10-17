@@ -69,6 +69,10 @@ document.addEventListener('DOMContentLoaded', () => {
     btnSwapNavPoints: document.getElementById('btnSwapNavPoints'),
     btnSelectBusMode: document.getElementById('btnSelectBusMode'),
     btnSelectSubwayMode: document.getElementById('btnSelectSubwayMode'),
+    badgeBusOption: document.getElementById('badgeBusOption'),
+    badgeSubwayOption: document.getElementById('badgeSubwayOption'),
+    timeBusOption: document.getElementById('timeBusOption'),
+    timeSubwayOption: document.getElementById('timeSubwayOption'),
     busStopsToggleText: document.getElementById('busStopsToggleText'),
     subwayStopsToggleText: document.getElementById('subwayStopsToggleText'),
     btnToggleStopsPin: document.getElementById('btnToggleStopsPin'),
@@ -670,9 +674,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if (nameStrong) {
         nameStrong.textContent = subData.isTransfer
           ? `환승 1회 (${subData.lineFromName} ➔ ${subData.lineToName})`
-          : `직통 (${subData.lineFromName})`;
+          : `노선 (${subData.lineFromName})`;
       }
     }
+
+    // 대중교통 최단시간 비교 후 [⭐ 추천] 동적 반영
+    updateTransportRecommendation(originSt, destSt);
 
     // 하단 미니 요약 갱신
     if (el.miniSummaryText) {
@@ -684,7 +691,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (el.subwayStopsToggleText) {
       el.subwayStopsToggleText.textContent = subData.isTransfer
         ? `환승 1회 (${subData.transferStation.name} 환승) · 클릭 시 ${subData.stations.length}개 역 표시`
-        : `직통 (환승 0회) · 클릭 시 ${subData.stations.length}개 역 표시`;
+        : `노선 (환승 0회) · 클릭 시 ${subData.stations.length}개 역 표시`;
     }
 
     // 백엔드 목적지 동기화 & 실시간 BIMS 도착 정보 및 상권 추천 갱신
@@ -1188,7 +1195,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 1. SUBWAY VIEW (직통노선 최우선 상단 추천 + 환승 대안 하단 배치)
+  // 1. SUBWAY VIEW (노선 최우선 상단 추천 + 환승 대안 하단 배치)
   function renderSubwayRouteDetails() {
     const originName = state.originStation ? state.originStation.name : '대연역';
     const destName = state.destStation ? state.destStation.name : '서면역';
@@ -1196,19 +1203,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedIdx = Math.min(state.selectedSubwayRouteIndex || 0, allRoutes.length - 1);
     const currentRoute = allRoutes[selectedIdx] || allRoutes[0];
 
-    // 직통 경로가 존재하는지 확인
+    // 직통(환승 0회) 경로가 존재하는지 확인
     const directRoute = allRoutes.find(r => !r.isTransfer);
     const hasDirect = !!directRoute;
 
-    // 직통이 있으면 직통이 primaryRoute, 없으면 0번(최단환승)이 primaryRoute
+    // 환승 0회가 있으면 directRoute가 primaryRoute, 없으면 0번(최단환승)이 primaryRoute
     const primaryRoute = hasDirect ? directRoute : allRoutes[0];
     const altRoutes = allRoutes.filter(r => r.routeId !== primaryRoute.routeId);
+
+    // 대중교통 추천 비교
+    const rec = updateTransportRecommendation(state.originStation, state.destStation);
 
     // 상단 빠른 요약 카드 갱신
     if (el.fastestCard) {
       el.fastestCard.style.display = 'block';
-      const badgeText = currentRoute.isTransfer ? `[환승 ${currentRoute.transfers}회]` : `[⭐ 최우선 직통]`;
-      el.fastestBusTitle.textContent = `★ ${badgeText} ${originName} ➔ ${destName} ${currentRoute.timeMins}분 정시도착!`;
+      const badgeText = currentRoute.isTransfer ? `[환승 ${currentRoute.transfers}회]` : (rec && rec.isSubwayFaster ? `[⭐ 최우선 추천]` : `[노선]`);
+      const speedHint = (rec && rec.isSubwayFaster && rec.diffMins > 0) ? ` (버스보다 ${rec.diffMins}분 빠름)` : '';
+      el.fastestBusTitle.textContent = `★ ${badgeText} ${originName} ➔ ${destName} ${currentRoute.timeMins}분 도착!${speedHint}`;
       el.fastestBusDesc.textContent = `${currentRoute.title} · ${currentRoute.stations.length - 1}개 역 경유 · 배차 4~6분`;
     }
 
@@ -1287,10 +1298,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }).join('');
     }
 
-    // C. 1) [최상단 배치] 직통 노선 최우선 추천 카드 (Rank 1)
+    // C. 1) [최상단 배치] 노선 최우선 추천 카드 (Rank 1)
     const isPrimaryActive = (currentRoute.routeId === primaryRoute.routeId);
     const primaryBadgeColor = primaryRoute.isTransfer ? '#6366F1' : '#10B981';
-    const primaryBadgeText = primaryRoute.isTransfer ? '⭐ 최단시간 추천 환승' : '⭐ 최우선 추천 직통';
+    const primaryBadgeText = primaryRoute.isTransfer ? '⭐ 최단시간 추천 환승' : (rec && rec.isSubwayFaster ? '⭐ 최단시간 추천 노선' : '노선');
 
     const primaryCardHtml = `
       <div class="subway-primary-route-card ${primaryRoute.isTransfer ? 'is-transfer' : ''}" style="${isPrimaryActive ? `border-color:${primaryBadgeColor};` : 'opacity:0.88;'}">
@@ -1300,7 +1311,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <span style="font-size:11px; color:#15803D; font-weight:800;">환승 ${primaryRoute.transfers}회 · 정시도착 100%</span>
           </div>
           <button class="btn-select-subway-route" data-route-id="${primaryRoute.routeId}" style="background:${isPrimaryActive ? primaryBadgeColor : '#E2E8F0'}; color:${isPrimaryActive ? '#FFF' : '#334155'}; border:none; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:800; cursor:pointer;">
-            ${isPrimaryActive ? '✓ 추천 직통 선택됨' : '직통 선택'}
+            ${isPrimaryActive ? '✓ 추천 노선 선택됨' : '노선 선택'}
           </button>
         </div>
 
@@ -1328,7 +1339,7 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     `;
 
-    // D. 2) [하단 배치] 환승해서 가는 대체 경로들 (우선순위를 낮게 잡아서 직통노선 밑으로 배치!)
+    // D. 2) [하단 배치] 환승해서 가는 대체 경로들 (우선순위를 낮게 잡아서 노선 밑으로 배치!)
     let altSectionHtml = '';
     if (altRoutes.length > 0) {
       altSectionHtml = `
@@ -1386,7 +1397,7 @@ document.addEventListener('DOMContentLoaded', () => {
     el.busListContainer.innerHTML = `
       <div style="margin-bottom:8px; font-size:12px; font-weight:800; color:#334155; display:flex; justify-content:space-between; align-items:center;">
         <span>🚇 지하철 경로 안내</span>
-        <span style="font-size:11px; color:#10B981; font-weight:700;">★ 직통 노선 최우선 추천</span>
+        <span style="font-size:11px; color:#10B981; font-weight:700;">★ 최단시간 대중교통 추천</span>
       </div>
 
       ${primaryCardHtml}
@@ -1411,31 +1422,62 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 2. BUS DESTINATION MATCHES
+  // 2. BUS DESTINATION MATCHES (실제 매칭된 부산 버스 노선 렌더링)
   function renderDestinationMatches() {
-    const matches = state.cachedMatches || [];
+    const originName = state.originStation ? state.originStation.name : '대연역';
+    const destName = state.destStation ? state.destStation.name : '서면역';
+    const matchedBuses = findMatchingBusRoutes(state.originStation, state.destStation);
+    const rec = updateTransportRecommendation(state.originStation, state.destStation);
 
-    if (matches.length === 0) {
+    // 실제 매칭된 버스 목록 생성 (state.cachedMatches가 없거나 기본 24번만 있을 때 matchedBuses로 정밀 반영)
+    let displayMatches = state.cachedMatches || [];
+    if (displayMatches.length === 0 || (displayMatches.length === 1 && displayMatches[0].busNumber === '24' && matchedBuses[0].busNumber !== '24')) {
+      const stopsCount = Math.max(2, Math.abs(((state.destStation && state.destStation.roadIndex) || 11) - ((state.originStation && state.originStation.roadIndex) || 5)));
+      const baseBusTime = (state.busDriveDurationSecs != null)
+        ? Math.max(5, Math.round((state.busDriveDurationSecs / 60) * 1.35 + 3))
+        : Math.max(5, Math.round(stopsCount * 2.5 + 4));
+
+      displayMatches = matchedBuses.map((b, idx) => ({
+        busNumber: b.busNumber,
+        routeType: b.routeType,
+        stopsToDestination: stopsCount + (idx * 2),
+        totalEstimatedMinutes: baseBusTime + (idx * 3),
+        boardingStation: { name: originName, arsId: '07016' },
+        destinationStation: { name: destName, arsId: '05032' },
+        arrivalInfo: {
+          remainingSeconds: 180 + (idx * 240),
+          remainingStops: 2 + (idx * 2),
+          lowFloor: (idx % 2 === 0),
+          congestion: (idx === 0 ? 'NORMAL' : 'SEATED'),
+          vehicleNumber: `부산70자 ${3100 + idx * 25}`
+        }
+      }));
+    }
+
+    if (displayMatches.length === 0) {
       if (el.fastestCard) el.fastestCard.style.display = 'none';
       el.busListContainer.innerHTML = `
         <div class="empty-state">
-          현재 위치에서 목적지까지 운행하는 직통 버스가 없습니다.<br>
+          현재 위치에서 목적지까지 운행하는 버스가 없습니다.<br>
           <span style="color:var(--brand-primary); font-weight:700; margin-top:6px; display:inline-block;">
-            상단 [지하철 정시도착]을 눌러 2호선을 이용해보세요!
+            상단 [지하철] 노선을 눌러 이동해보세요!
           </span>
         </div>
       `;
       return;
     }
 
-    const fastest = matches[0];
+    const fastest = displayMatches[0];
     if (el.fastestCard) {
       el.fastestCard.style.display = 'block';
-      el.fastestBusTitle.textContent = `★ [실시간 BIMS] 지금 ${fastest.busNumber}번 버스를 타시면 가장 빠릅니다!`;
-      el.fastestBusDesc.textContent = `${fastest.boardingStation.name}(ARS ${fastest.boardingStation.arsId}) 탑승 시 ${fastest.stopsToDestination}개 정류장 후 [${fastest.destinationStation.name}] 도착 (총 약 ${fastest.totalEstimatedMinutes}분 소요)`;
+      const isBusFaster = rec && !rec.isSubwayFaster;
+      const speedHint = (isBusFaster && rec.diffMins > 0) ? ` (지하철보다 ${rec.diffMins}분 더 빠름!)` : '';
+      const recBadge = isBusFaster ? '⭐ [최단시간 추천]' : '[노선]';
+      el.fastestBusTitle.textContent = `★ ${recBadge} 지금 ${fastest.busNumber}번 버스를 타시면 가장 빠릅니다!${speedHint}`;
+      el.fastestBusDesc.textContent = `${fastest.boardingStation.name} 탑승 시 ${fastest.stopsToDestination}개 정류장 후 [${fastest.destinationStation.name}] 도착 (총 약 ${fastest.totalEstimatedMinutes}분 소요 · 배차 ${matchedBuses[0] ? matchedBuses[0].intervalMins : '6~9분'})`;
     }
 
-    el.busListContainer.innerHTML = matches.map(m => createMatchCardHtml(m)).join('');
+    el.busListContainer.innerHTML = displayMatches.map(m => createMatchCardHtml(m)).join('');
     bindCardEvents();
   }
 
@@ -3036,71 +3078,281 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /**
-   * 출발역과 도착역에 최적화된 추천 버스 노선 결정
+   * 부산광역시 시내/급행 버스 실시간 매칭 노선 마스터 데이터베이스
    */
-  function determineRecommendedBus(originSt, destSt) {
-    if (!originSt || !destSt) return '시내 24번';
-    const oName = originSt.name || '';
-    const dName = destSt.name || '';
+  const BUS_ROUTES_MASTER = [
+    {
+      busNumber: '141',
+      routeType: '일반시내',
+      typeName: '간선',
+      badgeColor: '#2563EB',
+      origin: '송정',
+      destination: '당감동',
+      intervalMins: '7~10분',
+      keyStops: ['송정', '해운대', '동백', '벡스코', '센텀시티', '센텀', '수영', '망미', '배산', '물만골', '연산', '양정', '서면', '부암', '당감'],
+      desc: '양정·연산 ↔ 센텀·해운대 최단 도로 연결 노선'
+    },
+    {
+      busNumber: '31',
+      routeType: '일반시내',
+      typeName: '간선',
+      badgeColor: '#2563EB',
+      origin: '해운대',
+      destination: '모라주공',
+      intervalMins: '5~7분',
+      keyStops: ['해운대', '중동', '동백', '벡스코', '센텀시티', '센텀', '재송', '안락', '동래', '교대', '거제', '구남', '모라'],
+      desc: '해운대·센텀 ↔ 동래·교대 연결 주요 간선'
+    },
+    {
+      busNumber: '27',
+      routeType: '일반시내',
+      typeName: '간선',
+      badgeColor: '#2563EB',
+      origin: '용호동',
+      destination: '충무동',
+      intervalMins: '6~8분',
+      keyStops: ['용호동', '경성대', '부경대', '대연', '못골', '지게골', '문현', '자성대', '부산진역', '초량', '부산역', '중앙', '남포', '자갈치', '충무동'],
+      desc: '대연 ↔ 자성대·부산역·남포동 최단 연결 노선'
+    },
+    {
+      busNumber: '40',
+      routeType: '일반시내',
+      typeName: '간선',
+      badgeColor: '#2563EB',
+      origin: '청강리',
+      destination: '구덕운동장',
+      intervalMins: '8~12분',
+      keyStops: ['기장', '청강리', '송정', '해운대', '벡스코', '수영', '광안', '금련산', '남천', '경성대', '대연', '못골', '문현', '부산진역', '초량', '부산역', '남포', '자갈치'],
+      desc: '해운대·수영·대연 ↔ 부산역·남포동 황금 노선'
+    },
+    {
+      busNumber: '24',
+      routeType: '일반시내',
+      typeName: '지선',
+      badgeColor: '#059669',
+      origin: '용호동',
+      destination: '서면',
+      intervalMins: '6~9분',
+      keyStops: ['용호동', '경성대', '부경대', '대연', '못골', '지게골', '문현', '범내골', '서면', '전포'],
+      desc: '용호·대연 ↔ 문현·서면 핵심 연결 노선'
+    },
+    {
+      busNumber: '83',
+      routeType: '일반시내',
+      typeName: '간선',
+      badgeColor: '#2563EB',
+      origin: '민락동',
+      destination: '부전시장',
+      intervalMins: '7~10분',
+      keyStops: ['민락동', '광안', '수영', '남천', '경성대', '대연', '못골', '문현', '전포', '서면', '부전'],
+      desc: '민락·광안 ↔ 대연·서면 연결 노선'
+    },
+    {
+      busNumber: '83-1',
+      routeType: '일반시내',
+      typeName: '간선',
+      badgeColor: '#2563EB',
+      origin: '민락동',
+      destination: '사직동',
+      intervalMins: '8~11분',
+      keyStops: ['민락동', '광안', '수영', '남천', '경성대', '대연', '문현', '전포', '서면', '당감', '초읍', '사직'],
+      desc: '광안·대연 ↔ 서면·사직 종합 간선'
+    },
+    {
+      busNumber: '80',
+      routeType: '일반시내',
+      typeName: '간선',
+      badgeColor: '#2563EB',
+      origin: '금정공영차고지',
+      destination: '진시장',
+      intervalMins: '6~8분',
+      keyStops: ['금정', '부산대', '장전', '온천장', '명륜', '동래', '교대', '연산', '양정', '부전', '서면', '진시장'],
+      desc: '부산대·동래 ↔ 연산·양정·서면 중앙대로 축 노선'
+    },
+    {
+      busNumber: '1001',
+      routeType: '급행',
+      typeName: '급행',
+      badgeColor: '#DC2626',
+      origin: '청강리',
+      destination: '하단',
+      intervalMins: '8~12분',
+      keyStops: ['기장', '오시리아', '송정', '해운대', '동백', '벡스코', '센텀시티', '센텀', '수영', '광안', '경성대', '대연', '부산역', '남포', '괴정', '하단'],
+      desc: '기장·해운대 ↔ 수영·부산역·하단 쾌속 급행'
+    },
+    {
+      busNumber: '1000',
+      routeType: '급행',
+      typeName: '급행',
+      badgeColor: '#DC2626',
+      origin: '다대포',
+      destination: '서면',
+      intervalMins: '9~13분',
+      keyStops: ['다대포', '낫개', '신평', '하단', '당리', '괴정', '남포', '중앙', '부산역', '초량', '부산진역', '범내골', '서면'],
+      desc: '다대포·하단 ↔ 부산역·서면 직행 급행'
+    },
+    {
+      busNumber: '68',
+      routeType: '일반시내',
+      typeName: '간선',
+      badgeColor: '#2563EB',
+      origin: '용당동',
+      destination: '하단',
+      intervalMins: '7~10분',
+      keyStops: ['용당', '부경대', '대연', '못골', '문현', '전포', '서면', '당감', '가야', '개금', '주례', '사상', '하단'],
+      desc: '대연 ↔ 서면 ↔ 주례·하단 연결 동서간선'
+    },
+    {
+      busNumber: '100',
+      routeType: '일반시내',
+      typeName: '간선',
+      badgeColor: '#2563EB',
+      origin: '청강리',
+      destination: '장전역',
+      intervalMins: '9~12분',
+      keyStops: ['청강리', '송정', '해운대', '벡스코', '센텀시티', '센텀', '안락', '동래', '온천장', '부산대', '장전'],
+      desc: '해운대·센텀 ↔ 동래·부산대 직결 노선'
+    },
+    {
+      busNumber: '51',
+      routeType: '일반시내',
+      typeName: '간선',
+      badgeColor: '#2563EB',
+      origin: '금정차고지',
+      destination: '서대신동',
+      intervalMins: '7~10분',
+      keyStops: ['금정', '부산대', '동래', '연산', '배산', '망미', '수영', '광안', '남천', '경성대', '대연', '문현', '부산진역'],
+      desc: '부산대·동래·수영 ↔ 대연·부산진 연결 노선'
+    }
+  ];
+
+  /**
+   * 출발역과 도착역 사이를 실제로 운행하는 부산 버스 노선 검색
+   */
+  function findMatchingBusRoutes(originSt, destSt) {
+    if (!originSt || !destSt) {
+      return [BUS_ROUTES_MASTER.find(b => b.busNumber === '24') || BUS_ROUTES_MASTER[4]];
+    }
+
+    const oName = (originSt.name || '').replace('역', '').trim();
+    const dName = (destSt.name || '').replace('역', '').trim();
+
+    // 1. 출발지와 목적지를 모두 경유하는 실제 부산 버스 노선 탐색
+    const matched = BUS_ROUTES_MASTER.filter(route => {
+      const hasOrigin = route.keyStops.some(k => oName.includes(k) || k.includes(oName));
+      const hasDest = route.keyStops.some(k => dName.includes(k) || k.includes(dName));
+      return hasOrigin && hasDest;
+    });
+
+    if (matched.length > 0) return matched;
+
+    // 2. 권역 기반 스마트 매칭
     const oReg = originSt.region || '';
     const dReg = destSt.region || '';
-
     const isNorth = (oReg === 'DONGNAE' || oReg === 'PNU' || oName.includes('양정') || oName.includes('연산') || oName.includes('동래') || oName.includes('부산대'));
     const isHaeundae = (oReg === 'HAEUNDAE' || oReg === 'GIJANG' || oName.includes('해운대') || oName.includes('센텀') || oName.includes('벡스코') || oName.includes('장산'));
     const isNorthDest = (dReg === 'DONGNAE' || dReg === 'PNU' || dName.includes('양정') || dName.includes('연산') || dName.includes('동래') || dName.includes('부산대'));
     const isHaeundaeDest = (dReg === 'HAEUNDAE' || dReg === 'GIJANG' || dName.includes('해운대') || dName.includes('센텀') || dName.includes('벡스코') || dName.includes('장산'));
 
-    // 1. 양정/연산/동래 ↔ 센텀/해운대 직통: 부산 141번 (충렬대로-수영강변 직통 8.5km)
     if ((isNorth && isHaeundaeDest) || (isHaeundae && isNorthDest)) {
-      return '시내 141번 (양정·연산 ↔ 센텀·해운대 직통)';
+      return BUS_ROUTES_MASTER.filter(b => b.busNumber === '141' || b.busNumber === '31' || b.busNumber === '100');
     }
 
-    // 2. 대연/남구 ↔ 부산역/남포 직통: 부산 27번 (자성로-부산진역 직통 5.5km)
     const isDaeyeon = (oReg === 'DAEYEON' || oReg === 'GWANGAN' || oName.includes('대연') || oName.includes('경성대'));
     const isBusanStation = (oReg === 'BUSAN_STATION' || oReg === 'HADAN' || oName.includes('부산역') || oName.includes('남포'));
     const isDaeyeonDest = (dReg === 'DAEYEON' || dReg === 'GWANGAN' || dName.includes('대연') || dName.includes('경성대'));
     const isBusanStationDest = (dReg === 'BUSAN_STATION' || dReg === 'HADAN' || dName.includes('부산역') || dName.includes('남포'));
+
     if ((isDaeyeon && isBusanStationDest) || (isBusanStation && isDaeyeonDest)) {
-      return '시내 27번 (대연 ↔ 자성대·부산역 직통)';
+      return BUS_ROUTES_MASTER.filter(b => b.busNumber === '27' || b.busNumber === '40' || b.busNumber === '1001');
     }
 
-    // 3. 기장/해운대 ↔ 서면: 급행 1001번
-    if (oReg === 'GIJANG' || dReg === 'GIJANG' || isHaeundae || isHaeundaeDest) {
-      return '급행 1001번 (해운대·기장 ↔ 서면)';
-    }
-
-    // 4. 하단/다대포: 급행 1000번
-    if (oReg === 'HADAN' || dReg === 'HADAN') {
-      return '급행 1000번 (다대포·하단 ↔ 부산역·서면)';
-    }
-
-    // 5. 동래/부산대 ↔ 서면: 시내 80번
     if (isNorth || isNorthDest) {
-      return '시내 80번 (부산대·동래 ↔ 서면)';
+      return BUS_ROUTES_MASTER.filter(b => b.busNumber === '80' || b.busNumber === '51');
     }
 
-    // 6. 광안/수영 ↔ 서면: 시내 83번
     if (oName.includes('수영') || oName.includes('광안') || dName.includes('수영') || dName.includes('광안')) {
-      return '시내 83번 (수영·광안 ↔ 서면)';
+      return BUS_ROUTES_MASTER.filter(b => b.busNumber === '83' || b.busNumber === '83-1' || b.busNumber === '40');
     }
 
-    // 7. 기본 대연 ↔ 서면: 시내 24번
-    return '시내 24번 (대연 ↔ 서면)';
+    if (oReg === 'HADAN' || dReg === 'HADAN') {
+      return BUS_ROUTES_MASTER.filter(b => b.busNumber === '1000' || b.busNumber === '68');
+    }
+
+    return BUS_ROUTES_MASTER.filter(b => b.busNumber === '24' || b.busNumber === '68');
   }
 
   /**
-   * 부산 전역 지하철 환승 라우팅 엔진 (직통 및 1회 환승 자동 탐색)
+   * 출발역과 도착역에 최적화된 추천 버스 텍스트 결정
    */
+  function determineRecommendedBus(originSt, destSt) {
+    const matched = findMatchingBusRoutes(originSt, destSt);
+    if (matched && matched.length > 0) {
+      const top = matched[0];
+      return `${top.routeType} ${top.busNumber}번 (${top.origin} ↔ ${top.destination})`;
+    }
+    return '시내 24번 (용호동 ↔ 서면)';
+  }
+
   /**
-   * 부산 전역 지하철 다중 경로 탐색 엔진 (직통 및 다양한 환승 대안 제시)
+   * 버스와 지하철의 소요시간을 실시간 비교하여 가장 빠른 대중교통에 [⭐ 추천] 키워드 동적 부여
+   */
+  function updateTransportRecommendation(originSt, destSt) {
+    if (!originSt || !destSt) return null;
+    const allSub = buildAllSubwayRoutes(originSt, destSt);
+    const subRoute = (allSub && allSub.length > 0) ? allSub[0] : null;
+    const subwayTime = subRoute ? subRoute.timeMins : 15;
+
+    const stopsCount = Math.max(2, Math.abs(((destSt && destSt.roadIndex) || 11) - ((originSt && originSt.roadIndex) || 5)));
+    const busTime = (state.busDriveDurationSecs != null)
+      ? Math.max(5, Math.round((state.busDriveDurationSecs / 60) * 1.35 + 3))
+      : Math.max(5, Math.round(stopsCount * 2.5 + 4));
+
+    const isSubwayFaster = subwayTime <= busTime;
+    const diffMins = Math.abs(busTime - subwayTime);
+
+    // 상단 네비게이션 옵션 카드 뱃지 업데이트
+    if (el.badgeSubwayOption) {
+      if (isSubwayFaster) {
+        el.badgeSubwayOption.textContent = `⭐ 추천 (${diffMins > 0 ? diffMins + '분 빠름' : '최단'})`;
+        el.badgeSubwayOption.className = 'mode-option-badge bg-emerald-100 text-emerald-800 border-emerald-300';
+      } else {
+        el.badgeSubwayOption.textContent = '노선';
+        el.badgeSubwayOption.className = 'mode-option-badge bg-slate-100 text-slate-600 border-slate-200';
+      }
+    }
+
+    if (el.badgeBusOption) {
+      if (!isSubwayFaster) {
+        el.badgeBusOption.textContent = `⭐ 추천 (${diffMins > 0 ? diffMins + '분 빠름' : '최단'})`;
+        el.badgeBusOption.className = 'mode-option-badge bg-emerald-100 text-emerald-800 border-emerald-300';
+      } else {
+        el.badgeBusOption.textContent = '노선';
+        el.badgeBusOption.className = 'mode-option-badge bg-slate-100 text-slate-600 border-slate-200';
+      }
+    }
+
+    // 탭 버튼의 추천 뱃지 갱신
+    if (el.btnTabSubwayRoute) {
+      el.btnTabSubwayRoute.innerHTML = `🚇 지하철 노선 ${isSubwayFaster ? '<span style="background:#10B981; color:#fff; font-size:10px; font-weight:800; padding:1px 5px; border-radius:4px; margin-left:3px;">추천</span>' : ''}`;
+    }
+    if (el.btnTabBusRoute) {
+      el.btnTabBusRoute.innerHTML = `🚌 버스 노선 ${!isSubwayFaster ? '<span style="background:#10B981; color:#fff; font-size:10px; font-weight:800; padding:1px 5px; border-radius:4px; margin-left:3px;">추천</span>' : ''}`;
+    }
+
+    return { subwayTime, busTime, isSubwayFaster, diffMins };
+  }
+
+  /**
+   * 부산 전역 지하철 다중 경로 탐색 엔진 (노선 및 다양한 환승 대안 제시)
    */
   function buildAllSubwayRoutes(originSt, destSt) {
     if (!originSt || !destSt) {
       return [{
         routeId: 0,
-        title: '2호선 직통',
+        title: '2호선 노선',
         badgeType: 'direct',
-        badgeText: '추천 직통',
+        badgeText: '추천 노선',
         timeMins: 15,
         transfers: 0,
         isTransfer: false,
@@ -3132,7 +3384,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const routes = [];
 
-    // 1. 직통 가능한 경우 (동일 노선)
+    // 1. 노선 운행 가능한 경우 (동일 노선)
     if (commonLines.length > 0) {
       const lineKey = commonLines[0];
       const lineArr = getLineList(lineKey);
@@ -3141,9 +3393,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       routes.push({
         routeId: 0,
-        title: `${getLineName(lineKey)} 직통`,
+        title: `${getLineName(lineKey)} 노선`,
         badgeType: 'direct',
-        badgeText: '추천 직통',
+        badgeText: '추천 노선',
         timeMins: timeMins,
         transfers: 0,
         isTransfer: false,
@@ -3167,7 +3419,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ]
       });
 
-      // 직통 가능하더라도 사용자가 요구한 "환승해서 가는 대안" 제공!
+      // 노선 외에 사용자가 요구한 "환승해서 가는 대안" 제공!
       const altHubs = transferHubs.filter(h => h.id !== originSt.id && h.id !== destSt.id);
       altHubs.forEach(hub => {
         const hubSt = ALL_STATIONS_MASTER.find(s => s.id === hub.id);
@@ -3602,14 +3854,20 @@ document.addEventListener('DOMContentLoaded', () => {
       if (state.cachedMatches && state.cachedMatches.length > 0 && state.cachedMatches[0].arrivalInfo) {
         bus1Sec = state.cachedMatches[0].arrivalInfo.remainingSeconds;
       }
-      const busNum = (state.cachedMatches && state.cachedMatches.length > 0) ? state.cachedMatches[0].busNumber : '24';
+      // 출발역과 도착역에 맞는 실제 부산 버스 노선 동적 매칭
+      const matchedBuses = findMatchingBusRoutes(state.originStation, state.destStation);
+      let busNum = (matchedBuses && matchedBuses.length > 0) ? matchedBuses[0].busNumber : '24';
+      if (state.cachedMatches && state.cachedMatches.length > 0 && state.cachedMatches[0].busNumber) {
+        busNum = state.cachedMatches[0].busNumber;
+      }
+      const busTypeColor = (matchedBuses && matchedBuses[0] && matchedBuses[0].badgeColor) ? matchedBuses[0].badgeColor : '#2563EB';
 
       const fallbackRoad = CORRIDORS.SUYEONG_EAST.map(p => [p.lat, p.lng]);
       const activeRoad = (state.activeBusCoords && state.activeBusCoords.length > 0) ? state.activeBusCoords : fallbackRoad;
       const busCoord = interpolateRoadPosition(activeRoad, bus1Sec);
       const busIcon = L.divIcon({
         className: 'bus-icon-wrapper',
-        html: `<div class="leaflet-bus-icon"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="3" width="16" height="15" rx="2.5"/><path d="M4 11h16"/><circle cx="8" cy="15" r="1.5" fill="currentColor"/><circle cx="16" cy="15" r="1.5" fill="currentColor"/></svg><span>${busNum}번 (${Math.max(1, Math.round(bus1Sec / 60))}분 전)</span></div>`,
+        html: `<div class="leaflet-bus-icon" style="border-left: 3px solid ${busTypeColor};"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="3" width="16" height="15" rx="2.5"/><path d="M4 11h16"/><circle cx="8" cy="15" r="1.5" fill="currentColor"/><circle cx="16" cy="15" r="1.5" fill="currentColor"/></svg><span>${busNum}번 (${Math.max(1, Math.round(bus1Sec / 60))}분 전)</span></div>`,
         iconSize: [100, 24],
         iconAnchor: [50, 12]
       });

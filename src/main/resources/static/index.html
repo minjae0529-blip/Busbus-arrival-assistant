@@ -93,8 +93,8 @@
       <div class="drag-bar"></div>
       <div class="sheet-mini-summary">
         <div class="mini-summary-content">
-          <span class="mini-badge" id="miniModeBadge">🚌 24번 직통</span>
-          <span class="mini-route-text" id="miniSummaryText">대연역 ➔ 서면역 직통 (14분 소요)</span>
+          <span class="mini-badge" id="miniModeBadge">🚌 버스 노선</span>
+          <span class="mini-route-text" id="miniSummaryText">대연역 ➔ 서면역 노선 (14분 소요)</span>
         </div>
         <div class="sheet-controls-group">
           <span class="sheet-live-clock" id="liveClock">실시간 연동</span>
@@ -180,21 +180,21 @@
           <!-- OPTION 1: BUS -->
           <div class="nav-option-card active" id="btnSelectBusMode">
             <div class="nav-option-header">
-              <span class="mode-badge badge-bus">🚌 버스 직통 추천</span>
-              <span class="mode-time">약 14분</span>
+              <span class="mode-badge badge-bus" id="badgeBusOption">🚌 버스 노선</span>
+              <span class="mode-time" id="timeBusOption">약 14분</span>
             </div>
-            <div class="mode-route-name"><strong>부산 24번</strong> 도로 주행</div>
-            <div class="mode-route-sub" id="busStopsToggleText">환승 0회 · 클릭 시 정류소 8개 노선도 표시</div>
+            <div class="mode-route-name" id="nameBusOption"><strong>부산 24번</strong> 도로 주행</div>
+            <div class="mode-route-sub" id="busStopsToggleText">클릭 시 경유 정류소 노선도 표시</div>
           </div>
 
           <!-- OPTION 2: SUBWAY -->
           <div class="nav-option-card" id="btnSelectSubwayMode">
             <div class="nav-option-header">
-              <span class="mode-badge badge-subway">🚇 지하철 정시도착</span>
-              <span class="mode-time">약 11분</span>
+              <span class="mode-badge badge-subway" id="badgeSubwayOption">🚇 지하철 노선</span>
+              <span class="mode-time" id="timeSubwayOption">약 11분</span>
             </div>
-            <div class="mode-route-name"><strong>부산 2호선</strong> 최단시간</div>
-            <div class="mode-route-sub" id="subwayStopsToggleText">환승 0회 · 클릭 시 7개 지하철역 표시</div>
+            <div class="mode-route-name" id="nameSubwayOption"><strong>부산 2호선</strong> 정시 운행</div>
+            <div class="mode-route-sub" id="subwayStopsToggleText">클릭 시 경유 지하철역 표시</div>
           </div>
         </div>
 
@@ -218,7 +218,7 @@
       <nav class="custom-tab-bar">
         <button class="tab-btn active" data-tab="destination">
           <svg class="tab-svg-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
-          <span>직통 노선</span>
+          <span>노선</span>
         </button>
         <button class="tab-btn" data-tab="all-arrivals">
           <svg class="tab-svg-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="3" width="16" height="15" rx="3"/><path d="M4 11h16"/><path d="M6 18v2"/><path d="M18 18v2"/><circle cx="8" cy="15" r="1.5"/><circle cx="16" cy="15" r="1.5"/></svg>
@@ -491,7 +491,7 @@
       <button class="dialog-close" id="btnCloseDestModal">&times;</button>
     </div>
     <p class="dialog-description">
-      목적지를 설정해 두시면 내 위치에서 해당 역으로 직통 운행하는 최적 노선을 우선 추천합니다.
+      목적지를 설정해 두시면 내 위치에서 해당 역으로 운행하는 최적 노선을 우선 추천합니다.
     </p>
     <input type="text" id="inputSearchStation" class="clean-input" placeholder="정류소 또는 지하철역 검색..." style="width: 100%; margin-bottom: 12px;">
 
